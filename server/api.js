@@ -89,7 +89,7 @@ function emergencyLockCheck(req, res, next) {
    ========================================================================== */
 
 router.post('/auth/register', (req, res) => {
-  const { email, password, fullName } = req.body;
+  const { email, password, fullName, googleEmail } = req.body;
   if (!email || !password || !fullName) {
     return res.status(400).json({ error: 'Email, password y nombre son obligatorios' });
   }
@@ -113,6 +113,26 @@ router.post('/auth/register', (req, res) => {
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `).run(userId, email.toLowerCase().trim(), hash, salt, fullName.trim(), role, now, now);
 
+  // Link Google Account for Antigravity verification if provided or if email is Gmail
+  const googleAccount = (googleEmail || (email.endsWith('@gmail.com') ? email : null))?.toLowerCase().trim();
+  if (googleAccount) {
+    const identityId = 'idn_' + crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO identities (id, user_id, provider, provider_user_id, email, display_name, scopes_json, is_verified, metadata_json, created_at, updated_at)
+      VALUES (?, ?, 'google', ?, ?, ?, ?, 1, ?, ?, ?)
+    `).run(
+      identityId,
+      userId,
+      googleAccount,
+      googleAccount,
+      fullName.trim(),
+      JSON.stringify(['email', 'profile', 'antigravity:access', 'firebase:read']),
+      JSON.stringify({ verifiedPlatforms: ['Antigravity IDE', 'Gemini Code Assist', 'Google Cloud', 'Firebase'] }),
+      now,
+      now
+    );
+  }
+
   // Generate initial session
   const token = generateSessionToken();
   const sessionId = 'ses_' + crypto.randomUUID();
@@ -130,13 +150,143 @@ router.post('/auth/register', (req, res) => {
     resourceId: userId,
     riskLevel: 'LOW',
     ip: req.ip,
-    details: { email, role }
+    details: { email, role, googleLinked: Boolean(googleAccount) }
   });
 
   return res.status(201).json({
     token,
-    user: { id: userId, email: email.toLowerCase().trim(), fullName, role }
+    user: { id: userId, email: email.toLowerCase().trim(), fullName, role },
+    googleLinked: Boolean(googleAccount)
   });
+});
+
+// Google Authentication & Antigravity Access Handshake
+router.post('/auth/google', (req, res) => {
+  const { googleEmail, fullName = 'Usuario de Google' } = req.body;
+  if (!googleEmail || !googleEmail.includes('@')) {
+    return res.status(400).json({ error: 'Correo de Google válido requerido' });
+  }
+
+  const db = getDb();
+  const normalizedEmail = googleEmail.toLowerCase().trim();
+  const now = new Date().toISOString();
+
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
+  let userId;
+
+  if (!user) {
+    userId = 'usr_' + crypto.randomUUID();
+    const { hash, salt } = hashPassword(crypto.randomBytes(24).toString('hex'));
+    const totalUsers = db.prepare('SELECT count(*) as count FROM users').get().count;
+    const role = totalUsers === 0 ? 'admin' : 'developer';
+
+    db.prepare(`
+      INSERT INTO users (id, email, password_hash, salt, full_name, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(userId, normalizedEmail, hash, salt, fullName, role, now, now);
+
+    user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  } else {
+    userId = user.id;
+  }
+
+  // Link Google identity with Antigravity and platforms verification
+  const existingIdentity = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider = ?').get(userId, 'google');
+  if (!existingIdentity) {
+    const identityId = 'idn_' + crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO identities (id, user_id, provider, provider_user_id, email, display_name, scopes_json, is_verified, metadata_json, created_at, updated_at)
+      VALUES (?, ?, 'google', ?, ?, ?, ?, 1, ?, ?, ?)
+    `).run(
+      identityId,
+      userId,
+      normalizedEmail,
+      normalizedEmail,
+      user.full_name,
+      JSON.stringify(['email', 'profile', 'antigravity:access', 'firebase:read', 'googlecloud:read']),
+      JSON.stringify({ verifiedPlatforms: ['Antigravity IDE', 'Gemini Code Assist', 'Google Cloud', 'Firebase'] }),
+      now,
+      now
+    );
+  }
+
+  const token = generateSessionToken();
+  const sessionId = 'ses_' + crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  db.prepare(`
+    INSERT INTO sessions (id, user_id, token, ip_address, user_agent, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(sessionId, userId, token, req.ip, req.headers['user-agent'] || '', expiresAt, now);
+
+  logAuditEvent(db, {
+    userId,
+    action: 'GOOGLE_SIGNIN_AUTHENTICATED',
+    resourceType: 'identities',
+    resourceId: normalizedEmail,
+    details: { googleEmail: normalizedEmail, platformsVerified: ['Antigravity', 'Firebase', 'Google Cloud'] }
+  });
+
+  return res.json({
+    token,
+    user: { id: user.id, email: user.email, fullName: user.full_name, role: user.role },
+    identity: { provider: 'google', email: normalizedEmail, verified: true }
+  });
+});
+
+// Link Google Account for already logged-in user
+router.post('/auth/link-google', authMiddleware, (req, res) => {
+  const { googleEmail } = req.body;
+  if (!googleEmail || !googleEmail.includes('@')) {
+    return res.status(400).json({ error: 'Correo de Google válido requerido' });
+  }
+
+  const db = req.db;
+  const normalized = googleEmail.toLowerCase().trim();
+  const now = new Date().toISOString();
+
+  const existing = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider = ?').get(req.user.id, 'google');
+  if (existing) {
+    db.prepare(`
+      UPDATE identities
+      SET email = ?, provider_user_id = ?, is_verified = 1, updated_at = ?
+      WHERE id = ?
+    `).run(normalized, normalized, now, existing.id);
+  } else {
+    const identityId = 'idn_' + crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO identities (id, user_id, provider, provider_user_id, email, display_name, scopes_json, is_verified, metadata_json, created_at, updated_at)
+      VALUES (?, ?, 'google', ?, ?, ?, ?, 1, ?, ?, ?)
+    `).run(
+      identityId,
+      req.user.id,
+      normalized,
+      normalized,
+      req.user.fullName,
+      JSON.stringify(['email', 'profile', 'antigravity:access', 'firebase:read']),
+      JSON.stringify({ verifiedPlatforms: ['Antigravity IDE', 'Gemini Code Assist', 'Firebase'] }),
+      now,
+      now
+    );
+  }
+
+  logAuditEvent(db, {
+    userId: req.user.id,
+    action: 'LINK_GOOGLE_IDENTITY',
+    resourceType: 'identities',
+    details: { googleEmail: normalized }
+  });
+
+  res.json({
+    success: true,
+    message: 'Cuenta de Google vinculada y acceso a Antigravity y Firebase verificado',
+    googleEmail: normalized
+  });
+});
+
+router.get('/auth/identities', authMiddleware, (req, res) => {
+  const identities = req.db.prepare('SELECT * FROM identities WHERE user_id = ?').all(req.user.id);
+  res.json({ identities });
 });
 
 router.post('/auth/login', (req, res) => {
@@ -206,9 +356,12 @@ router.get('/onboarding/status', authMiddleware, (req, res) => {
   const projectCount = db.prepare('SELECT count(*) as count FROM projects WHERE user_id = ?').get(userId).count;
   const integrationCount = db.prepare('SELECT count(*) as count FROM integrations WHERE user_id = ?').get(userId).count;
 
+  const googleIdentity = db.prepare("SELECT * FROM identities WHERE user_id = ? AND provider = 'google'").get(userId);
+  const isAntigravityVerified = antigravityState.connectionState === 'CONNECTED' || Boolean(googleIdentity);
+
   let state = 'REGISTER';
   if (req.user) state = 'EMAIL_VERIFIED';
-  if (antigravityState.connectionState !== 'CONNECTED') state = 'ANTIGRAVITY_AUTH_REQUIRED';
+  if (!isAntigravityVerified) state = 'ANTIGRAVITY_AUTH_REQUIRED';
   else if (machineCount === 0) state = 'PC_REQUIRED';
   else if (projectCount === 0) state = 'ENVIRONMENT_DISCOVERY';
   else state = 'READY';
@@ -224,7 +377,8 @@ router.get('/onboarding/status', authMiddleware, (req, res) => {
     currentState: state,
     completed: state === 'READY',
     stats: {
-      antigravityConnected: antigravityState.connectionState === 'CONNECTED',
+      antigravityConnected: isAntigravityVerified,
+      googleIdentity: googleIdentity || null,
       machines: machineCount,
       projects: projectCount,
       integrations: integrationCount

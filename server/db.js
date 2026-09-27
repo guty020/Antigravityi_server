@@ -60,6 +60,23 @@ function initSchema(db) {
       FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
     );
 
+    -- Identities (Google, Antigravity, GitHub, etc.)
+    CREATE TABLE IF NOT EXISTS identities (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      provider TEXT NOT NULL, -- 'google', 'antigravity', 'github'
+      provider_user_id TEXT,
+      email TEXT NOT NULL,
+      display_name TEXT,
+      avatar_url TEXT,
+      scopes_json TEXT NOT NULL DEFAULT '[]',
+      is_verified INTEGER NOT NULL DEFAULT 1,
+      metadata_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     -- Connected Machines (Agent Connector)
     CREATE TABLE IF NOT EXISTS machines (
       id TEXT PRIMARY KEY,

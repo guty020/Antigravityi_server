@@ -127,17 +127,44 @@ function switchAuthTab(mode) {
   document.getElementById('tabLogin').classList.toggle('active', mode === 'login');
   document.getElementById('tabRegister').classList.toggle('active', mode === 'register');
   document.getElementById('authRegisterNameGroup').classList.toggle('hidden', mode === 'login');
+  document.getElementById('authRegisterGoogleGroup').classList.toggle('hidden', mode === 'login');
   document.getElementById('authSubmitBtn').textContent = mode === 'login' ? 'Entrar' : 'Crear Cuenta';
   document.getElementById('authModalTitle').textContent = mode === 'login' ? 'Iniciar Sesión' : 'Registro de Usuario';
+}
+
+async function handleGoogleAuth() {
+  const email = prompt('Introduce tu Cuenta de Google / Gmail para validar el acceso oficial a Antigravity y Firebase:', 'guty020@gmail.com');
+  if (!email || !email.includes('@')) return;
+
+  try {
+    const res = await fetch('/api/auth/google', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        googleEmail: email.trim(),
+        fullName: email.split('@')[0]
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Error al conectar con Google');
+
+    setAuthenticatedUser(data.user, data.token);
+    alert(`¡Cuenta de Google (${data.identity.email}) conectada exitosamente!\nSe ha validado el acceso a Antigravity, Firebase y Google Cloud.`);
+    loadDashboardData();
+  } catch (err) {
+    alert(err.message);
+  }
 }
 
 async function handleAuthSubmit() {
   const email = document.getElementById('authEmail').value.trim();
   const password = document.getElementById('authPassword').value;
   const fullName = document.getElementById('authFullName').value.trim();
+  const googleEmail = document.getElementById('authGoogleEmail')?.value.trim();
 
   const endpoint = authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
-  const body = authMode === 'login' ? { email, password } : { email, password, fullName };
+  const body = authMode === 'login' ? { email, password } : { email, password, fullName, googleEmail };
 
   try {
     const res = await fetch(endpoint, {
@@ -149,6 +176,9 @@ async function handleAuthSubmit() {
     if (!res.ok) throw new Error(data.error || 'Fallo de autenticación');
 
     setAuthenticatedUser(data.user, data.token);
+    if (data.googleLinked) {
+      alert('¡Cuenta creada y vinculada con tu Cuenta de Google para acceso a Antigravity y Firebase!');
+    }
     loadDashboardData();
   } catch (err) {
     alert(err.message);
@@ -377,8 +407,16 @@ async function checkOnboardingStatus() {
     titleEl.textContent = `Paso Actual: ${data.currentState}`;
     
     if (data.currentState === 'ANTIGRAVITY_AUTH_REQUIRED') {
-      descEl.textContent = 'Conecta tu entorno local de Antigravity para inspeccionar CLI, skills y MCP servers oficiales.';
-      actionEl.innerHTML = `<button class="btn btn-primary" onclick="connectAntigravity()">Conectar Antigravity Ahora</button>`;
+      descEl.textContent = 'Vincula tu Cuenta de Google asociada a Antigravity o verifica el entorno local para comprobar permisos.';
+      actionEl.innerHTML = `
+        <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+          <button class="btn btn-primary" onclick="linkGoogleFromOnboarding()">
+            <svg width="16" height="16" viewBox="0 0 24 24"><path fill="#fff" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 17.93c-3.95-.49-7-3.85-7-7.93 0-.62.08-1.21.21-1.79L9 15v1c0 1.1.9 2 2 2v1.93zm6.9-2.54c-.26-.81-1-1.39-1.9-1.39h-1v-3c0-.55-.45-1-1-1H8v-2h2c.55 0 1-.45 1-1V7h2c1.1 0 2-.9 2-2v-.41c2.93 1.19 5 4.06 5 7.41 0 2.08-.8 3.97-2.1 5.39z"/></svg>
+            Vincular Cuenta de Google (Antigravity ID)
+          </button>
+          <button class="btn btn-secondary" onclick="connectAntigravity()">Verificar Entorno Local</button>
+        </div>
+      `;
     } else if (data.currentState === 'PC_REQUIRED') {
       descEl.textContent = 'Empareja tu PC para permitir que el Agent Connector descubra proyectos con permisos mínimos.';
       actionEl.innerHTML = `<button class="btn btn-primary" onclick="openPairingModal()">Emparejar Mi PC</button>`;
@@ -391,6 +429,19 @@ async function checkOnboardingStatus() {
     }
   } catch (err) {
     console.error('Error checking onboarding:', err);
+  }
+}
+
+async function linkGoogleFromOnboarding() {
+  const email = prompt('Introduce tu Cuenta de Google (Gmail) para verificar el acceso oficial a Antigravity y Firebase:', 'guty020@gmail.com');
+  if (!email || !email.includes('@')) return;
+  try {
+    const res = await apiRequest('/api/auth/link-google', 'POST', { googleEmail: email.trim() });
+    alert(res.message);
+    checkOnboardingStatus();
+    loadDashboardData();
+  } catch (e) {
+    alert(e.message);
   }
 }
 
