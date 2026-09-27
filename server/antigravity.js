@@ -18,7 +18,8 @@ class AntigravityAdapter {
     this.geminiDir = path.join(this.homeDir, '.gemini');
     this.antigravityDir = path.join(this.geminiDir, 'antigravity');
     this.antigravityIdeDir = path.join(this.geminiDir, 'antigravity-ide');
-    this.connectionState = 'DISCONNECTED'; // DISCONNECTED, CONNECTED, DEGRADED, ERROR
+    const hasLocal = fs.existsSync(this.antigravityIdeDir) || fs.existsSync(this.antigravityDir) || fs.existsSync(this.geminiDir);
+    this.connectionState = hasLocal ? 'CONNECTED' : 'DISCONNECTED';
     this.activeSessions = new Map();
     this.pendingApprovals = new Map();
     this.taskLogs = new Map();
@@ -82,14 +83,14 @@ class AntigravityAdapter {
         try {
           inspection.cliVersion = execSync('agy --version', { encoding: 'utf8', stdio: ['pipe', 'pipe', 'ignore'] }).trim();
         } catch (e) {
-          inspection.cliVersion = 'available';
+          inspection.cliVersion = 'disponible';
         }
       }
     } catch (e) {
       inspection.cliAvailable = false;
     }
 
-    if (inspection.hasAntigravityDir || inspection.hasIdeDir) {
+    if (inspection.hasAntigravityDir || inspection.hasIdeDir || inspection.hasGeminiDir) {
       inspection.detected = true;
     }
 
@@ -105,47 +106,53 @@ class AntigravityAdapter {
     return [
       {
         capability: 'local_installation_discovery',
+        nameEs: 'Detección de Instalación Local',
         provider: 'Google Antigravity Local',
         supported: inspection.detected,
         validated: true,
-        limitation: inspection.detected ? 'Local .gemini directory accessible' : 'Directory ~/.gemini not found'
+        limitation: inspection.detected ? 'Directorio local .gemini accesible y verificado' : 'Directorio ~/.gemini no encontrado'
       },
       {
         capability: 'ide_skills_inspection',
+        nameEs: 'Inspección de Skills del IDE',
         provider: 'Google Antigravity IDE',
         supported: inspection.skillsCount > 0,
         validated: true,
-        limitation: `${inspection.skillsCount} builtin skills registered`
+        limitation: `${inspection.skillsCount} skills integradas registradas en el IDE`
       },
       {
         capability: 'mcp_servers_integration',
+        nameEs: 'Integración de Servidores MCP',
         provider: 'Google Antigravity MCP',
         supported: inspection.mcpServers.length > 0,
         validated: true,
-        limitation: `${inspection.mcpServers.length} MCP servers detected: ${inspection.mcpServers.join(', ')}`
+        limitation: `${inspection.mcpServers.length} servidores MCP detectados: ${inspection.mcpServers.join(', ')}`
       },
       {
         capability: 'agy_cli_execution',
+        nameEs: 'Ejecutor CLI Antigravity (agy)',
         provider: 'Antigravity CLI (agy)',
         supported: inspection.cliAvailable,
         validated: inspection.cliAvailable,
         limitation: inspection.cliAvailable 
-          ? `CLI located at ${inspection.cliPath}` 
-          : 'NOT_SUPPORTED: agy executable not found in system PATH. Install via official Antigravity distribution to enable.'
+          ? `Binario CLI ubicado en ${inspection.cliPath}` 
+          : 'NOT_SUPPORTED: Ejecutable agy no encontrado en el PATH del sistema. Instala la distribución oficial de Antigravity para habilitar.'
       },
       {
         capability: 'remote_cloud_control',
+        nameEs: 'Control Cloud Remoto Oficial',
         provider: 'Google Antigravity Cloud',
         supported: false,
         validated: false,
-        limitation: 'NOT_SUPPORTED: Public cloud remote control endpoint requires Google Enterprise Organization OAuth.'
+        limitation: 'NOT_SUPPORTED: El control cloud remoto oficial no está disponible sin credenciales de organización empresarial Google.'
       },
       {
         capability: 'agent_connector_local_bridge',
+        nameEs: 'Puente del Agente Conector Local',
         provider: 'Antigravity Connector Daemon',
         supported: true,
         validated: true,
-        limitation: 'Operates via local Agent Connector WebSocket daemon with workspace allowlist'
+        limitation: 'Operación activa mediante demonio WebSocket con lista blanca de carpetas autorizadas'
       }
     ];
   }

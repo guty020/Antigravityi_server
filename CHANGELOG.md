@@ -2,6 +2,37 @@
 
 Todas las modificaciones notables del proyecto están documentadas en este archivo según las directrices de `16_CHANGELOG_AND_STATE.md`.
 
+## [1.0.0-beta] - 2026-09-28 — Versión 1.0 Beta
+
+### Añadido y Consolidado
+- **Localización Completa al Español & Selector de Idioma:**
+  - Toda la plataforma, estados del sistema, diagnósticos y alertas traducidos al español de forma nativa.
+  - Selector de idioma en Preferencias de la aplicación (Español / English) persistente en `localStorage`.
+- **Gestión Absoluta de PCs & Erradicación de Datos Ficticios (Foto 4):**
+  - Limpieza de máquinas huérfanas en la base de datos real.
+  - Edición de nombre del PC y allowlist de carpetas autorizadas para escaneo.
+  - Bloqueo y desbloqueo inmediato (`BLOCKED` / `ONLINE`) de equipos.
+  - Borrado permanente de PCs con confirmación de seguridad.
+  - Prevención de duplicados en la generación de códigos de emparejamiento.
+- **Adaptabilidad Responsive sin Scroll Vertical Invasivo (Foto 1):**
+  - Rediseño de `#pairingModal` y modales con `max-height: calc(100vh - 48px)` y flexbox vertical.
+  - Adaptabilidad total en PC, tablet y smartphone sin desplazables verticales dobles.
+- **Sugerencias en Botones, Explorador de Archivos y Acceso SSH/SFTP (Foto 2):**
+  - Información contextual en botones con toggle para activar o desactivar sugerencias (modo novel vs senior).
+  - Modal **"📂 Ver Proyecto"** con árbol físico de directorios y ficheros en tiempo real.
+  - Conexión segura **SSH / SFTP / FTPS** con cifrado **AES-256-GCM** y test de socket TCP en vivo con medición de latencia en milisegundos.
+  - Botón de acceso directo en el panel principal (Dashboard) y en cada tarjeta de PC.
+- **Lanzador de Tareas con Pipeline Semafórico & Auto-Reparación:**
+  - 4 etapas visuales con semáforos animados (🟡 En proceso, 🟢 Éxito, 🔴 Error).
+  - Diagnóstico guiado ante fallos con botón **"🛠️ Corregir desde la App"** (Self-Healing) y enlace directo a la documentación oficial externa.
+- **Cuotas Oficiales de Antigravity (Foto 3):**
+  - Stack oficial exclusivo (Gemini 2.0 Flash, Code Assist, Claude 3.5 Sonnet, GPT-4o, Firebase, Supabase, Vercel).
+  - Estado en 0% si no hay sesión iniciada para evitar datos inventados.
+- **Filtros Multi-Proveedor en Tiempo Real (Foto 5):**
+  - Filtro por proveedor (Firebase, Supabase, Vercel, Docker, Git) para auditoría inmediata.
+- **Documento VERSION.md y Pestaña Acerca de:**
+  - Creación de `MD/VERSION.md` y visualización integrada en Ajustes > "Acerca de Antigravity Server & Conector".
+
 ## [1.1.0] - 2026-09-27
 
 ### Añadido y Mejorado

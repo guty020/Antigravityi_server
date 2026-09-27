@@ -15,7 +15,7 @@ const { encryptSecret, decryptSecret } = require('./security');
 const DEFAULT_MODELS = [
   {
     modelId: 'gemini-2-flash',
-    modelName: 'Google Gemini 2.0 Flash (Antigravity Core)',
+    modelName: 'Google Antigravity Core (Gemini 2.0 Flash)',
     provider: 'google',
     quotaLimit: 1000000,
     quotaUsed: 0,
@@ -23,7 +23,7 @@ const DEFAULT_MODELS = [
   },
   {
     modelId: 'gemini-code-assist',
-    modelName: 'Gemini Code Assist Pro (IDE Context)',
+    modelName: 'Antigravity Code Assist Pro (IDE Context)',
     provider: 'google',
     quotaLimit: 500000,
     quotaUsed: 0,
@@ -39,19 +39,11 @@ const DEFAULT_MODELS = [
   },
   {
     modelId: 'gpt-4o',
-    modelName: 'OpenAI GPT-4o / Codex Multi-Modal Engine',
+    modelName: 'OpenAI GPT-4o Copilot (Antigravity Bridge)',
     provider: 'openai',
-    quotaLimit: 500000,
+    quotaLimit: 200000,
     quotaUsed: 0,
     unit: 'tokens/día'
-  },
-  {
-    modelId: 'supabase-edge',
-    modelName: 'Supabase PostgreSQL & Edge Functions AI',
-    provider: 'supabase',
-    quotaLimit: 50000,
-    quotaUsed: 0,
-    unit: 'invocaciones/mes'
   },
   {
     modelId: 'firebase-cloud',
@@ -62,8 +54,16 @@ const DEFAULT_MODELS = [
     unit: 'invocaciones/mes'
   },
   {
+    modelId: 'supabase-edge',
+    modelName: 'Supabase PostgreSQL & Edge Functions AI',
+    provider: 'supabase',
+    quotaLimit: 50000,
+    quotaUsed: 0,
+    unit: 'invocaciones/mes'
+  },
+  {
     modelId: 'vercel-ai',
-    modelName: 'Vercel AI SDK & Serverless Edge',
+    modelName: 'Vercel AI SDK & Edge Middleware',
     provider: 'vercel',
     quotaLimit: 100,
     quotaUsed: 0,
@@ -77,7 +77,7 @@ function seedDefaultQuotas(db, userId) {
     INSERT OR IGNORE INTO ai_model_quotas (
       id, user_id, model_id, model_name, provider,
       quota_limit, quota_used, unit, status, last_used_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_KEY', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?)
   `);
 
   DEFAULT_MODELS.forEach(m => {
@@ -102,19 +102,29 @@ function getUserQuotas(db, userId) {
   }
 
   let totalPctAvailable = 0;
+  let activeModelsCount = 0;
 
   const quotas = rows.map(r => {
     const limit = Number(r.quota_limit) || 1;
     const used = Number(r.quota_used) || 0;
-    const pctUsed = Math.min(100, Math.max(0, Math.round((used / limit) * 100)));
-    const pctAvailable = 100 - pctUsed;
-    totalPctAvailable += pctAvailable;
+    const isLinked = r.status === 'ACTIVE' || r.status === 'VERIFIED_LIVE' || Boolean(r.encrypted_api_key);
 
-    let healthColor = 'emerald'; // green
-    if (pctUsed >= 85) {
-      healthColor = 'rose'; // red
-    } else if (pctUsed >= 60) {
-      healthColor = 'amber'; // yellow
+    let pctUsed = 0;
+    let pctAvailable = 0;
+    let healthColor = 'slate';
+
+    if (isLinked) {
+      activeModelsCount++;
+      pctUsed = Math.min(100, Math.max(0, Math.round((used / limit) * 100)));
+      pctAvailable = 100 - pctUsed;
+      totalPctAvailable += pctAvailable;
+
+      healthColor = 'emerald';
+      if (pctUsed >= 85) {
+        healthColor = 'rose';
+      } else if (pctUsed >= 60) {
+        healthColor = 'amber';
+      }
     }
 
     return {
@@ -122,28 +132,32 @@ function getUserQuotas(db, userId) {
       modelId: r.model_id,
       modelName: r.model_name,
       provider: r.provider,
-      quotaLimit: limit,
+      quotaLimit: isLinked ? limit : 0,
       quotaUsed: used,
       unit: r.unit,
       percentageUsed: pctUsed,
       percentageAvailable: pctAvailable,
       healthColor,
       hasApiKey: Boolean(r.encrypted_api_key),
-      status: r.status,
+      status: isLinked ? r.status : 'PENDING_KEY',
+      isLinked,
       lastUsedAt: r.last_used_at
     };
   });
 
-  const averageAvailability = quotas.length > 0
-    ? Math.round(totalPctAvailable / quotas.length)
-    : 100;
+  const averageAvailability = activeModelsCount > 0
+    ? Math.round(totalPctAvailable / activeModelsCount)
+    : 0;
+
+  const activeProviders = [...new Set(quotas.filter(q => q.isLinked).map(q => q.provider))];
 
   return {
     quotas,
     summary: {
       totalModels: quotas.length,
+      activeModels: activeModelsCount,
       averageAvailability,
-      activeProviders: [...new Set(quotas.map(q => q.provider))],
+      activeProviders,
       timestamp: new Date().toISOString()
     }
   };

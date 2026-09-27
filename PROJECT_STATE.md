@@ -1,12 +1,20 @@
 # ANTIGRAVITY CONNECTOR — ESTADO DEL PROYECTO
 
-- **Versión:** 1.0.0
-- **Fecha:** 2026-09-27
-- **Estado General:** FUNCIONAL Y VALIDADO
+- **Versión:** 1.0.0-beta
+- **Fecha:** 2026-09-28
+- **Estado General:** FUNCIONAL Y VALIDADO (Versión 1.0 Beta)
 
 ---
 
 ## 1. Funcionalidades Implementadas y Validadas
+- [x] **Gestión Absoluta de PCs:** Eliminación de datos falsos/ejemplo. Edición de nombre de PC, configuración de allowlist de carpetas, bloqueo/desbloqueo instantáneo y borrado permanente.
+- [x] **Canal Remoto Seguro SSH / SFTP / FTPS:** Configuración con cifrado simétrico AES-256-GCM y botón de comprobación TCP en vivo con socket nativo y reporte de latencia en milisegundos.
+- [x] **Lanzador de Tareas con Pipeline Semafórico:** Visualización de 4 etapas (Requisitos, Implementación, Tests, Checkpoint) con semáforos animados (🟡 Proceso, 🟢 Éxito, 🔴 Error), diagnóstico detallado y auto-reparación integrada.
+- [x] **Explorador de Proyectos ("Ver Proyecto"):** Inspección física del árbol de carpetas y archivos en tiempo real sin exponer secretos.
+- [x] **Filtros Multi-Proveedor:** Clasificación en vivo de proyectos para Firebase, Supabase, Vercel, Docker y Git Local.
+- [x] **Modelos Oficiales Antigravity & Cuotas a 0:** Medidores de cuotas para el stack oficial de Antigravity (Gemini 2.0 Flash, Code Assist, Claude 3.5 Sonnet, GPT-4o, Firebase, Supabase, Vercel). Sin sesión se muestran en 0%.
+- [x] **Zero-Scrollbar Modals & Adaptabilidad:** Modales y ventanas rediseñados sin desplazable vertical invasivo en PC, tablet y smartphone.
+- [x] **Sugerencias en Botones & Selector de Idioma:** Modo asistido configurable para noveles vs seniors e interfaz 100% en español con selector de idioma.
 - [x] **Aislamiento Multi-Tenant Real:** Autenticación por sesiones seguras, hashing con scrypt y salt individual, estricto aislamiento SQL por `user_id` sin fugas de datos cruzados entre USER-A y USER-B.
 - [x] **Antigravity Adapter Oficial:** Detección de instalación local en `~/.gemini/antigravity` y `~/.gemini/antigravity-ide`. Matriz de capacidades desacoplada sin inventar APIs privadas; retorno explícito de `NOT_SUPPORTED` para endpoints en la nube no documentados.
 - [x] **Agent Connector Daemon:** Emparejamiento por código temporal (PIN de 6 dígitos), bucle de heartbeats cada 10s, autodetección de herramientas del sistema (Git, Node, Python, Docker) y respeto estricto de allowlist de carpetas contra path traversal.

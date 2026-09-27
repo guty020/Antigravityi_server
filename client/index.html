@@ -130,11 +130,15 @@
             <p class="view-subtitle">Supervisión en tiempo real de PCs conectados, estado de Antigravity y proyectos activos.</p>
           </div>
           <div class="header-actions">
-            <button class="btn btn-secondary" onclick="loadDashboardData()">
+            <button class="btn btn-secondary" onclick="loadDashboardData()" title="Actualizar métricas del panel">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               Actualizar
             </button>
-            <button class="btn btn-primary" onclick="openNewTaskModal()">
+            <button class="btn btn-secondary" onclick="openDashboardRemoteAccessModal()" title="Gestionar tu PC remotamente mediante canal cifrado SSH o SFTP">
+              <span style="font-size: 14px;">🌐</span>
+              Conexión SSH / SFTP
+            </button>
+            <button class="btn btn-primary" onclick="openTaskPipeline(null, 'Nueva Tarea General')" title="Lanzar tarea con semáforos de validación automática">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Nueva Tarea
             </button>
@@ -282,10 +286,25 @@
             <h1 class="view-title">Descubrimiento de Proyectos & Passport</h1>
             <p class="view-subtitle">Escanéo controlado sin exposición de secretos. Generación automática del Project Passport.</p>
           </div>
-          <button class="btn btn-secondary" onclick="triggerScanModal()">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-            Escanear Directorio Autorizado
-          </button>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="triggerScanModal()" title="Escanear carpetas autorizadas de tus PCs emparejados">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+              Escanear Directorio Autorizado
+            </button>
+          </div>
+        </div>
+
+        <!-- Provider Filters Bar (Photo 5: Proveedores a tiempo real) -->
+        <div class="provider-filter-bar">
+          <span class="filter-label">Filtrar por Proveedor:</span>
+          <div class="filter-pills" id="projectProviderFilters">
+            <button class="filter-pill active" onclick="filterProjectsByProvider('all')">Todos</button>
+            <button class="filter-pill" onclick="filterProjectsByProvider('firebase')">🔥 Firebase</button>
+            <button class="filter-pill" onclick="filterProjectsByProvider('supabase')">⚡ Supabase</button>
+            <button class="filter-pill" onclick="filterProjectsByProvider('vercel')">▲ Vercel</button>
+            <button class="filter-pill" onclick="filterProjectsByProvider('docker')">🐳 Docker</button>
+            <button class="filter-pill" onclick="filterProjectsByProvider('git')">🐙 Git Local</button>
+          </div>
         </div>
 
         <div id="projectsGrid" class="projects-grid">
@@ -447,6 +466,65 @@
             <div>
               <h3>Modo Ilimitado Gratuito Activo</h3>
               <p>Tienes acceso al 100% de todas las funcionalidades, PCs conectados, proyectos, backups de 3 niveles, orquestación y herramientas avanzadas sin límites artificiales ni bloqueos.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- User Preferences & Language Configuration -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <h2 class="card-title">🌐 Preferencias de la Aplicación & Experiencia</h2>
+            <span class="badge badge-info">Personalización</span>
+          </div>
+          <div class="admin-toggle-box">
+            <div class="toggle-row" style="border-bottom: 1px solid var(--border-subtle); padding-bottom: 14px; margin-bottom: 14px;">
+              <div>
+                <strong>Idioma de la Plataforma</strong>
+                <p class="text-muted">Elige el idioma oficial de la interfaz, diagnósticos, logs y ayudas.</p>
+              </div>
+              <div style="min-width: 170px;">
+                <select id="appLanguageSelect" class="form-input" onchange="handleLanguageChange(this.value)">
+                  <option value="es" selected>🇪🇸 Español (Oficial)</option>
+                  <option value="en">🇬🇧 English (Global)</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="toggle-row">
+              <div>
+                <strong>Sugerencias e Información en Botones (Modo Asistido)</strong>
+                <p class="text-muted">Muestra descripciones claras de qué hace y para qué sirve cada botón. Los usuarios avanzados pueden desactivarlo.</p>
+              </div>
+              <label class="switch">
+                <input type="checkbox" id="btnHintsToggle" checked onchange="handleBtnHintsToggle(this.checked)">
+                <span class="slider round"></span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- About & Version 1.0 Beta Tab / Card -->
+        <div class="card mt-4">
+          <div class="card-header">
+            <div style="display: flex; align-items: center; gap: 10px;">
+              <span style="font-size: 20px;">ℹ️</span>
+              <h2 class="card-title">Acerca de Antigravity Server & Conector</h2>
+            </div>
+            <span class="badge badge-success">Versión 1.0 Beta</span>
+          </div>
+          <div class="about-version-content" style="padding: 10px 0; font-size: 13px; line-height: 1.6; color: var(--text-muted);">
+            <div style="display: flex; gap: 12px; margin-bottom: 14px; flex-wrap: wrap;">
+              <span class="badge badge-info">Release: v1.0.0-beta</span>
+              <span class="badge badge-success">Arquitectura Desacoplada</span>
+              <span class="badge badge-warning">Zero-Simulation Policy</span>
+              <span class="badge badge-info">AES-256-GCM Vault</span>
+            </div>
+            <div id="aboutVersionChangelog" class="about-changelog-box" style="background: rgba(0,0,0,0.3); border: 1px solid var(--border-subtle); border-radius: 8px; padding: 14px; max-height: 240px; overflow-y: auto; font-family: var(--font-mono); font-size: 12px; color: var(--text-main);">
+              Cargando notas de la versión 1.0 Beta...
+            </div>
+            <div style="margin-top: 12px; display: flex; justify-content: space-between; align-items: center; font-size: 12px;">
+              <span>Documento fuente: <code>MD/VERSION.md</code></span>
+              <button class="btn btn-xs btn-secondary" onclick="loadAboutVersionDoc()">Refrescar Notas</button>
             </div>
           </div>
         </div>
@@ -890,6 +968,251 @@
         <div class="modal-actions" id="appDialogActions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
           <button id="appDialogCancelBtn" class="btn btn-secondary hidden" onclick="closeAppDialog(false)">Cancelar</button>
           <button id="appDialogConfirmBtn" class="btn btn-primary" onclick="closeAppDialog(true)">Aceptar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 7. Modal: Explorador de Archivos y Carpetas del Proyecto (Ver Proyecto) -->
+  <div id="projectFilesModal" class="modal hidden">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">📂</span>
+          <div>
+            <h2 class="modal-title" id="projectFilesModalTitle">Explorador de Archivos del Proyecto</h2>
+            <div style="font-size: 11px; color: var(--text-dim);" id="projectFilesModalPath">Cargando ruta...</div>
+          </div>
+        </div>
+        <button class="btn-close" onclick="closeModal('projectFilesModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="project-files-toolbar">
+          <span id="projectFilesStats" style="font-size: 12px; color: var(--text-muted);">0 elementos detectados</span>
+          <div style="display: flex; gap: 8px;">
+            <button class="btn btn-xs btn-secondary" onclick="refreshCurrentProjectFiles()">🔄 Actualizar Árbol</button>
+            <button class="btn btn-xs btn-primary" onclick="launchTaskFromCurrentProject()">⚡ Lanzar Tarea Aquí</button>
+          </div>
+        </div>
+        <div id="projectFilesTree" class="project-files-tree-box">
+          <!-- Dynamically populated files tree -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 8. Modal: Acceso Remoto Seguro SSH / SFTP / FTPS al PC -->
+  <div id="remoteAccessModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">🌐</span>
+          <div>
+            <h2 class="modal-title">Acceso Remoto Seguro (SSH / SFTP / FTPS)</h2>
+            <div style="font-size: 11px; color: var(--text-dim);" id="remoteAccessPcName">Configurar conexión con cifrado militar AES-256-GCM</div>
+          </div>
+        </div>
+        <button class="btn-close" onclick="closeModal('remoteAccessModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 12px; color: var(--text-muted); margin-bottom: 14px; line-height: 1.5;">
+          Permite gestionar remotamente este ordenador desde la app mediante un canal encriptado de extremo a extremo sin capturas intermedias ni fugas de datos.
+        </p>
+
+        <input type="hidden" id="remoteAccessMachineId">
+
+        <div class="form-group">
+          <label>Protocolo Seguro:</label>
+          <select id="remoteProtocolSelect" class="form-input">
+            <option value="ssh" selected>SSH (Secure Shell - Puerto 22 por defecto)</option>
+            <option value="sftp">SFTP (SSH File Transfer Protocol - Puerto 22)</option>
+            <option value="ftps">FTPS (FTP sobre TLS/SSL Encriptado - Puerto 21/990)</option>
+          </select>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label>Host / IP Local o Remota:</label>
+            <input type="text" id="remoteHostInput" class="form-input" placeholder="127.0.0.1 o pc.local" value="127.0.0.1">
+          </div>
+          <div class="form-group">
+            <label>Puerto:</label>
+            <input type="number" id="remotePortInput" class="form-input" value="22">
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Usuario del Sistema:</label>
+          <input type="text" id="remoteUserInput" class="form-input" placeholder="usuario">
+        </div>
+
+        <div class="form-group">
+          <label>Contraseña o Clave Privada (AES-256):</label>
+          <input type="password" id="remoteCredentialInput" class="form-input" placeholder="•••••••• o pegar clave PEM">
+        </div>
+
+        <div id="remoteTestResult" class="hidden" style="margin-bottom: 12px; padding: 10px; border-radius: 6px; font-size: 12px;"></div>
+
+        <div style="display: flex; gap: 10px; margin-top: 18px;">
+          <button class="btn btn-secondary w-50" id="btnTestRemoteConnection" onclick="testRemoteConnection()">
+            🔌 Probar Conexión TCP
+          </button>
+          <button class="btn btn-primary w-50" onclick="saveRemoteConnection()">
+            💾 Guardar Conexión Segura
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 9. Modal: Lanzador de Tarea con Semáforos Interactivos & Auto-Reparación -->
+  <div id="taskPipelineModal" class="modal hidden">
+    <div class="modal-card modal-lg">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">🚦</span>
+          <div>
+            <h2 class="modal-title">Lanzar Tarea con Pipeline Semafórico</h2>
+            <div style="font-size: 11px; color: var(--text-dim);">Supervisión visual en 4 estados con auto-diagnóstico y resolución</div>
+          </div>
+        </div>
+        <button class="btn-close" onclick="closeModal('taskPipelineModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Input section before run -->
+        <div id="pipelineInputSection">
+          <div class="form-group">
+            <label>Título de la Tarea:</label>
+            <input type="text" id="pipelineTaskTitle" class="form-input" placeholder="Ej: Compilación y validación de componentes">
+          </div>
+          <div class="form-group">
+            <label>Instrucción / Intención:</label>
+            <textarea id="pipelineTaskIntent" class="form-input" rows="2" placeholder="Describe qué quieres ejecutar..."></textarea>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+            <div class="form-group">
+              <label>Proyecto Asociado:</label>
+              <select id="pipelineProjectSelect" class="form-input">
+                <option value="">-- Sin proyecto específico --</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label>Modo de Supervisión:</label>
+              <select id="pipelineModeSelect" class="form-input">
+                <option value="SUPERVISED" selected>Supervisado</option>
+                <option value="AUTOMATIC">Automático</option>
+              </select>
+            </div>
+          </div>
+          <button class="btn btn-primary w-100" id="btnStartPipeline" onclick="executeTaskPipeline()">
+            🚀 Iniciar Pipeline con Semáforos
+          </button>
+        </div>
+
+        <!-- Visual Semáforos (Traffic Lights) Container -->
+        <div id="pipelineTrafficLightsSection" class="pipeline-lights-section hidden">
+          <div class="pipeline-stages-grid">
+            <!-- Stage 1 -->
+            <div class="stage-traffic-card" id="stageCard1">
+              <div class="traffic-light-bulb light-gray" id="stageBulb1"></div>
+              <div class="stage-info">
+                <div class="stage-num">ETAPA 1</div>
+                <div class="stage-title">Requisitos e Intención</div>
+                <div class="stage-status" id="stageStatus1">Pendiente</div>
+              </div>
+            </div>
+
+            <!-- Stage 2 -->
+            <div class="stage-traffic-card" id="stageCard2">
+              <div class="traffic-light-bulb light-gray" id="stageBulb2"></div>
+              <div class="stage-info">
+                <div class="stage-num">ETAPA 2</div>
+                <div class="stage-title">Implementación de Código</div>
+                <div class="stage-status" id="stageStatus2">Pendiente</div>
+              </div>
+            </div>
+
+            <!-- Stage 3 -->
+            <div class="stage-traffic-card" id="stageCard3">
+              <div class="traffic-light-bulb light-gray" id="stageBulb3"></div>
+              <div class="stage-info">
+                <div class="stage-num">ETAPA 3</div>
+                <div class="stage-title">Validación & Tests</div>
+                <div class="stage-status" id="stageStatus3">Pendiente</div>
+              </div>
+            </div>
+
+            <!-- Stage 4 -->
+            <div class="stage-traffic-card" id="stageCard4">
+              <div class="traffic-light-bulb light-gray" id="stageBulb4"></div>
+              <div class="stage-info">
+                <div class="stage-num">ETAPA 4</div>
+                <div class="stage-title">Despliegue & Checkpoint</div>
+                <div class="stage-status" id="stageStatus4">Pendiente</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Dynamic Output and Resolution Box -->
+          <div id="pipelineLogBox" class="pipeline-log-box">
+            Iniciando pipeline de ejecución...
+          </div>
+
+          <!-- Error Resolution Actions (Only shown if a stage fails 🔴) -->
+          <div id="pipelineErrorResolutionBox" class="pipeline-error-box hidden">
+            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+              <span style="font-size: 20px;">🔴</span>
+              <strong style="color: #ff6b81;" id="pipelineErrorTitle">Se ha detectado un fallo en la ejecución</strong>
+            </div>
+            <p style="font-size: 12px; color: var(--text-muted); line-height: 1.5; margin-bottom: 12px;" id="pipelineErrorDescription">
+              El entorno devolvió un código de error o falta de dependencia.
+            </p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+              <button class="btn btn-sm btn-success" id="btnFixFromApp" onclick="triggerAutoFixFromApp()">
+                🛠️ Corregir desde la App
+              </button>
+              <a href="#" target="_blank" class="btn btn-sm btn-secondary" id="btnExternalDocLink" style="display: inline-flex; align-items: center; gap: 6px; text-decoration: none;">
+                📖 Guía de Solución Externa ↗
+              </a>
+            </div>
+          </div>
+
+          <div style="margin-top: 14px; display: flex; justify-content: flex-end; gap: 10px;">
+            <button class="btn btn-secondary" onclick="resetTaskPipeline()">Nueva Tarea</button>
+            <button class="btn btn-primary hidden" id="btnDonePipeline" onclick="closeModal('taskPipelineModal')">Finalizar</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 10. Modal: Editar PC y Rutas Autorizadas -->
+  <div id="editPcModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 20px;">🖥️</span>
+          <h2 class="modal-title">Editar PC & Rutas Autorizadas</h2>
+        </div>
+        <button class="btn-close" onclick="closeModal('editPcModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="editPcId">
+        <div class="form-group">
+          <label>Nombre Identificativo:</label>
+          <input type="text" id="editPcNameInput" class="form-input">
+        </div>
+        <div class="form-group">
+          <label>Rutas / Carpetas Autorizadas para Escaneo (Una por línea):</label>
+          <textarea id="editPcPathsInput" class="form-input" rows="4" placeholder="C:\Users\...\Desktop\Web&#10;D:\Proyectos"></textarea>
+          <small style="font-size: 11px; color: var(--text-dim); display: block; margin-top: 4px;">
+            Solo las carpetas incluidas en esta allowlist serán inspeccionadas por el conector sin vulnerar tu privacidad.
+          </small>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button class="btn btn-secondary w-50" onclick="closeModal('editPcModal')">Cancelar</button>
+          <button class="btn btn-primary w-50" onclick="submitEditPc()">Guardar Cambios</button>
         </div>
       </div>
     </div>
