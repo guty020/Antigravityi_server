@@ -51,51 +51,20 @@ async function initAuth() {
       const res = await apiRequest('/api/auth/me');
       if (res && res.user) {
         setAuthenticatedUser(res.user, STATE.token);
-        return;
+        return true;
       }
     } catch (e) {
       localStorage.removeItem('ag_token');
       STATE.token = null;
+      STATE.user = null;
     }
   }
 
-  // Auto-register initial admin account if fresh local setup
-  try {
-    const regRes = await fetch('/api/auth/register', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'admin@antigravity.local',
-        password: 'AdminMasterPassword2026!',
-        fullName: 'Administrador Local'
-      })
-    });
-    if (regRes.ok) {
-      const data = await regRes.json();
-      setAuthenticatedUser(data.user, data.token);
-      return;
-    }
-  } catch (e) {}
-
-  // If already registered, attempt login
-  try {
-    const loginRes = await fetch('/api/auth/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        email: 'admin@antigravity.local',
-        password: 'AdminMasterPassword2026!'
-      })
-    });
-    if (loginRes.ok) {
-      const data = await loginRes.json();
-      setAuthenticatedUser(data.user, data.token);
-      return;
-    }
-  } catch (e) {}
-
-  // Otherwise show auth modal
+  // If not logged in, prompt user with login modal
+  const userNameEl = document.getElementById('userName');
+  if (userNameEl) userNameEl.textContent = 'Sin Sesión';
   openAuthModal();
+  return false;
 }
 
 function setAuthenticatedUser(user, token) {
@@ -109,16 +78,47 @@ function setAuthenticatedUser(user, token) {
   closeModal('authModal');
 }
 
-function handleLogout() {
-  apiRequest('/api/auth/logout', 'POST').catch(() => {});
+async function handleLogout() {
+  try {
+    if (STATE.token) {
+      await apiRequest('/api/auth/logout', 'POST');
+    }
+  } catch (e) {
+    // ignore
+  }
+
+  // Clear session completely
   localStorage.removeItem('ag_token');
   STATE.token = null;
   STATE.user = null;
-  location.reload();
+
+  // Update UI to logged-out state
+  const userNameEl = document.getElementById('userName');
+  if (userNameEl) userNameEl.textContent = 'Sin Sesión';
+
+  // Clear dashboard metric values
+  const agEl = document.getElementById('dashAntigravityStatus');
+  if (agEl) agEl.textContent = 'Requiere Sesión';
+  const mCount = document.getElementById('dashMachinesCount');
+  if (mCount) mCount.textContent = '0';
+  const pCount = document.getElementById('dashProjectsCount');
+  if (pCount) pCount.textContent = '0';
+  const tCount = document.getElementById('dashTasksCount');
+  if (tCount) tCount.textContent = '0';
+
+  // Clear input fields
+  const emailInput = document.getElementById('authEmail');
+  if (emailInput) emailInput.value = '';
+  const passInput = document.getElementById('authPassword');
+  if (passInput) passInput.value = '';
+
+  // Immediately present login modal
+  openAuthModal();
 }
 
 function openAuthModal() {
-  document.getElementById('authModal').classList.remove('hidden');
+  const modal = document.getElementById('authModal');
+  if (modal) modal.classList.remove('hidden');
 }
 
 let authMode = 'login';

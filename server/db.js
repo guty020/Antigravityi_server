@@ -257,6 +257,17 @@ function initSchema(db) {
 
 function seedDefaults(db) {
   const now = new Date().toISOString();
+  const { hashPassword } = require('./security');
+
+  // Seed default admin user if empty
+  const userCheck = db.prepare('SELECT count(*) as count FROM users').get();
+  if (userCheck.count === 0) {
+    const { hash, salt } = hashPassword('AdminMasterPassword2026!');
+    db.prepare(`
+      INSERT INTO users (id, email, password_hash, salt, full_name, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run('usr_admin_default', 'admin@antigravity.local', hash, salt, 'Administrador Local', 'admin', now, now);
+  }
 
   // Settings
   const settingsCheck = db.prepare('SELECT count(*) as count FROM system_settings WHERE key = ?').get('premium_mode_enabled');
