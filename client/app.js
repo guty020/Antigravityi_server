@@ -16,6 +16,7 @@ const STATE = {
 window.addEventListener('DOMContentLoaded', () => {
   detectDeviceLayout();
   window.addEventListener('resize', detectDeviceLayout);
+  initCustomSelects();
   
   initAuth().then(() => {
     initWebSocket();
@@ -132,16 +133,258 @@ function switchAuthTab(mode) {
   document.getElementById('authModalTitle').textContent = mode === 'login' ? 'Iniciar Sesión' : 'Registro de Usuario';
 }
 
-async function handleGoogleAuth() {
-  const email = prompt('Introduce tu Cuenta de Google / Gmail para validar el acceso oficial a Antigravity y Firebase:', 'guty020@gmail.com');
-  if (!email || !email.includes('@')) return;
+/* ==========================================================================
+   CUSTOM UI DIALOGS & TOAST NOTIFICATION ENGINE
+   Replaces all browser prompt(), alert(), confirm() with modern dark glassmorphism
+   ========================================================================== */
+
+let activeDialogResolver = null;
+
+function showToast(message, type = 'info', duration = 4000) {
+  const container = document.getElementById('toastContainer');
+  if (!container) return;
+
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  
+  const iconMap = {
+    success: '✅',
+    error: '❌',
+    warning: '⚠️',
+    info: 'ℹ️'
+  };
+
+  toast.innerHTML = `
+    <span style="font-size: 16px;">${iconMap[type] || 'ℹ️'}</span>
+    <div style="flex: 1;">${escapeHtml(message)}</div>
+  `;
+
+  container.appendChild(toast);
+
+  setTimeout(() => {
+    toast.style.opacity = '0';
+    toast.style.transform = 'translateX(50px)';
+    setTimeout(() => toast.remove(), 350);
+  }, duration);
+}
+
+function openCustomDialog({ title, message, icon = 'ℹ️', showInput = false, inputValue = '', placeholder = '', showCancel = false, confirmText = 'Aceptar' }) {
+  return new Promise((resolve) => {
+    activeDialogResolver = resolve;
+
+    document.getElementById('appDialogTitle').textContent = title || 'Mensaje del Sistema';
+    document.getElementById('appDialogMessage').textContent = message || '';
+    document.getElementById('appDialogIcon').textContent = icon;
+
+    const inputGroup = document.getElementById('appDialogInputGroup');
+    const input = document.getElementById('appDialogInput');
+    if (showInput) {
+      inputGroup.classList.remove('hidden');
+      input.value = inputValue || '';
+      input.placeholder = placeholder || '';
+      setTimeout(() => input.focus(), 60);
+    } else {
+      inputGroup.classList.add('hidden');
+    }
+
+    const cancelBtn = document.getElementById('appDialogCancelBtn');
+    if (showCancel) {
+      cancelBtn.classList.remove('hidden');
+    } else {
+      cancelBtn.classList.add('hidden');
+    }
+
+    const confirmBtn = document.getElementById('appDialogConfirmBtn');
+    confirmBtn.textContent = confirmText;
+
+    document.getElementById('appDialogModal').classList.remove('hidden');
+  });
+}
+
+function closeAppDialog(isConfirmed) {
+  const modal = document.getElementById('appDialogModal');
+  modal.classList.add('hidden');
+
+  if (activeDialogResolver) {
+    if (isConfirmed) {
+      const inputGroup = document.getElementById('appDialogInputGroup');
+      if (!inputGroup.classList.contains('hidden')) {
+        const val = document.getElementById('appDialogInput').value;
+        activeDialogResolver(val);
+      } else {
+        activeDialogResolver(true);
+      }
+    } else {
+      activeDialogResolver(null);
+    }
+    activeDialogResolver = null;
+  }
+}
+
+function appAlert(title, message, icon = 'ℹ️') {
+  return openCustomDialog({ title, message, icon, showCancel: false, confirmText: 'Entendido' });
+}
+
+function appConfirm(title, message, icon = '❓') {
+  return openCustomDialog({ title, message, icon, showCancel: true, confirmText: 'Confirmar' }).then(res => Boolean(res));
+}
+
+function appPrompt(title, message, defaultValue = '', placeholder = '', icon = '✏️') {
+  return openCustomDialog({ title, message, icon, showInput: true, inputValue: defaultValue, placeholder, showCancel: true, confirmText: 'Aceptar' });
+}
+
+/* ==========================================================================
+   CUSTOM DROPDOWN / SELECT ENGINE
+   Converts system <select> dropdowns into custom dark glassmorphic components
+   ========================================================================== */
+
+function initCustomSelects() {
+  const selects = document.querySelectorAll('select.form-input');
+  selects.forEach(select => setupSingleCustomSelect(select));
+}
+
+function setupSingleCustomSelect(select) {
+  if (!select) return;
+
+  let wrapper = select.nextElementSibling;
+  if (!wrapper || !wrapper.classList.contains('custom-select-container')) {
+    // Hide original select visually while keeping it fully functioning for forms and scripts
+    select.style.position = 'absolute';
+    select.style.opacity = '0';
+    select.style.pointerEvents = 'none';
+    select.style.height = '0';
+    select.style.width = '0';
+
+    wrapper = document.createElement('div');
+    wrapper.className = 'custom-select-container';
+    wrapper.dataset.forSelect = select.id || '';
+
+    const trigger = document.createElement('div');
+    trigger.className = 'custom-select-trigger';
+    trigger.setAttribute('tabindex', '0');
+
+    const label = document.createElement('span');
+    label.className = 'custom-select-label';
+
+    const arrow = document.createElement('span');
+    arrow.className = 'custom-select-arrow';
+    arrow.innerHTML = `
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <polyline points="6 9 12 15 18 9"></polyline>
+      </svg>
+    `;
+
+    trigger.appendChild(label);
+    trigger.appendChild(arrow);
+
+    const dropdown = document.createElement('div');
+    dropdown.className = 'custom-select-dropdown';
+
+    wrapper.appendChild(trigger);
+    wrapper.appendChild(dropdown);
+
+    select.parentNode.insertBefore(wrapper, select.nextSibling);
+
+    trigger.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const isOpen = wrapper.classList.contains('open');
+      closeAllCustomDropdowns();
+      if (!isOpen) {
+        wrapper.classList.add('open');
+      }
+    });
+
+    trigger.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        e.preventDefault();
+        trigger.click();
+      }
+    });
+  }
+
+  renderCustomSelectOptions(select, wrapper);
+}
+
+function renderCustomSelectOptions(select, wrapper) {
+  const dropdown = wrapper.querySelector('.custom-select-dropdown');
+  const label = wrapper.querySelector('.custom-select-label');
+  if (!dropdown || !label) return;
+
+  dropdown.innerHTML = '';
+  const options = Array.from(select.options);
+  const selectedOption = select.options[select.selectedIndex] || options[0];
+
+  label.textContent = selectedOption ? selectedOption.text : '-- Seleccionar --';
+
+  options.forEach((opt) => {
+    const item = document.createElement('div');
+    item.className = 'custom-select-item';
+    if (opt.value === select.value) {
+      item.classList.add('selected');
+    }
+    item.dataset.value = opt.value;
+
+    item.innerHTML = `
+      <span class="option-text">${escapeHtml(opt.text)}</span>
+      <span class="custom-select-check">✓</span>
+    `;
+
+    item.addEventListener('click', (e) => {
+      e.stopPropagation();
+      select.value = opt.value;
+      label.textContent = opt.text;
+      
+      wrapper.querySelectorAll('.custom-select-item').forEach(i => i.classList.remove('selected'));
+      item.classList.add('selected');
+
+      wrapper.classList.remove('open');
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    dropdown.appendChild(item);
+  });
+}
+
+function refreshCustomSelect(selectIdOrEl) {
+  const select = typeof selectIdOrEl === 'string' ? document.getElementById(selectIdOrEl) : selectIdOrEl;
+  if (!select) return;
+  setupSingleCustomSelect(select);
+}
+
+function closeAllCustomDropdowns() {
+  document.querySelectorAll('.custom-select-container.open').forEach(w => w.classList.remove('open'));
+}
+
+document.addEventListener('click', () => {
+  closeAllCustomDropdowns();
+});
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'Escape') {
+    closeAllCustomDropdowns();
+  }
+});
+
+function openGoogleAuthModal() {
+  document.getElementById('googleAuthModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('googleModalEmailInput')?.focus(), 60);
+}
+
+async function confirmGoogleAuth() {
+  const input = document.getElementById('googleModalEmailInput');
+  const email = input ? input.value.trim() : '';
+
+  if (!email || !email.includes('@')) {
+    showToast('Por favor introduce un correo de Google válido', 'warning');
+    return;
+  }
 
   try {
     const res = await fetch('/api/auth/google', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        googleEmail: email.trim(),
+        googleEmail: email,
         fullName: email.split('@')[0]
       })
     });
@@ -149,12 +392,17 @@ async function handleGoogleAuth() {
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Error al conectar con Google');
 
+    closeModal('googleAuthModal');
     setAuthenticatedUser(data.user, data.token);
-    alert(`¡Cuenta de Google (${data.identity.email}) conectada exitosamente!\nSe ha validado el acceso a Antigravity, Firebase y Google Cloud.`);
+    showToast(`¡Cuenta de Google (${data.identity.email}) conectada y validada!`, 'success');
     loadDashboardData();
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, 'error');
   }
+}
+
+function handleGoogleAuth() {
+  openGoogleAuthModal();
 }
 
 async function handleAuthSubmit() {
@@ -177,11 +425,13 @@ async function handleAuthSubmit() {
 
     setAuthenticatedUser(data.user, data.token);
     if (data.googleLinked) {
-      alert('¡Cuenta creada y vinculada con tu Cuenta de Google para acceso a Antigravity y Firebase!');
+      showToast('¡Cuenta creada y vinculada con Google para Antigravity!', 'success');
+    } else {
+      showToast('Sesión iniciada correctamente', 'success');
     }
     loadDashboardData();
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, 'error');
   }
 }
 
@@ -432,27 +682,18 @@ async function checkOnboardingStatus() {
   }
 }
 
-async function linkGoogleFromOnboarding() {
-  const email = prompt('Introduce tu Cuenta de Google (Gmail) para verificar el acceso oficial a Antigravity y Firebase:', 'guty020@gmail.com');
-  if (!email || !email.includes('@')) return;
-  try {
-    const res = await apiRequest('/api/auth/link-google', 'POST', { googleEmail: email.trim() });
-    alert(res.message);
-    checkOnboardingStatus();
-    loadDashboardData();
-  } catch (e) {
-    alert(e.message);
-  }
+function linkGoogleFromOnboarding() {
+  openGoogleAuthModal();
 }
 
 async function connectAntigravity() {
   try {
     const res = await apiRequest('/api/antigravity/connect', 'POST');
-    alert(res.message);
+    showToast(res.message, 'success');
     checkOnboardingStatus();
     loadDashboardData();
   } catch (e) {
-    alert(e.message);
+    showToast(e.message, 'error');
   }
 }
 
@@ -504,7 +745,7 @@ async function generatePairingCode() {
     document.getElementById('pairingCliCommand').textContent = data.command;
     document.getElementById('pairingResultBox').classList.remove('hidden');
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, 'error');
   }
 }
 
@@ -560,7 +801,7 @@ async function loadProjects() {
 async function triggerScanModal() {
   const machinesRes = await apiRequest('/api/machines');
   if (!machinesRes.machines || machinesRes.machines.length === 0) {
-    alert('Primero debes emparejar un PC para escanear sus proyectos.');
+    await appAlert('Emparejamiento Necesario', 'Primero debes emparejar un PC para escanear sus proyectos.', '🖥️');
     openPairingModal();
     return;
   }
@@ -573,11 +814,11 @@ async function scanMachine(machineId) {
     appendTerminalLog(`[${new Date().toLocaleTimeString()}] Iniciando escaneo controlado de proyectos...\n`);
     const res = await apiRequest('/api/projects/scan', 'POST', { machineId });
     appendTerminalLog(`[${new Date().toLocaleTimeString()}] Escaneo completado: ${res.count} proyectos encontrados.\n`);
-    alert(`Escaneo completado con éxito. Se detectaron ${res.count} proyectos.`);
+    showToast(`Escaneo completado. Se detectaron ${res.count} proyectos.`, 'success');
     loadProjects();
     loadDashboardData();
   } catch (err) {
-    alert(`Fallo en el escaneo: ${err.message}`);
+    showToast(`Fallo en el escaneo: ${err.message}`, 'error');
   }
 }
 
@@ -619,14 +860,16 @@ async function loadTasks() {
 }
 
 function openNewTaskModal() {
-  // Populate project select
+  // Populate project select and refresh custom styled dropdown
   apiRequest('/api/projects').then(data => {
     const select = document.getElementById('taskProjectSelect');
     if (select && data.projects) {
       select.innerHTML = '<option value="">-- Sin proyecto específico --</option>' +
         data.projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)}</option>`).join('');
+      refreshCustomSelect(select);
     }
   });
+  refreshCustomSelect('taskModeSelect');
   document.getElementById('newTaskModal').classList.remove('hidden');
 }
 
@@ -636,7 +879,7 @@ async function submitNewTask() {
   const mode = document.getElementById('taskModeSelect').value;
   const projectId = document.getElementById('taskProjectSelect').value;
 
-  if (!title) return alert('El título de la tarea es obligatorio');
+  if (!title) return showToast('El título de la tarea es obligatorio', 'warning');
 
   try {
     const data = await apiRequest('/api/tasks', 'POST', {
@@ -647,32 +890,34 @@ async function submitNewTask() {
     });
 
     closeModal('newTaskModal');
-    alert(`Tarea creada con éxito. Estado inicial: ${data.task.status} (Riesgo: ${data.task.risk_level})`);
+    showToast(`Tarea creada (${data.task.status}). Riesgo: ${data.task.risk_level}`, 'success');
     switchView('orchestrator');
   } catch (err) {
-    alert(`Error: ${err.message}`);
+    showToast(`Error: ${err.message}`, 'error');
   }
 }
 
 async function approveTask(taskId) {
   try {
     const res = await apiRequest(`/api/tasks/${taskId}/approve`, 'POST');
-    alert(`Tarea aprobada. Se ha reanudado la ejecución.`);
+    showToast('Tarea aprobada. Se ha reanudado la ejecución.', 'success');
     loadTasks();
     loadDashboardData();
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, 'error');
   }
 }
 
 async function rejectTask(taskId) {
-  const reason = prompt('Indica el motivo del rechazo:') || 'Rechazado por el usuario';
+  const reason = await appPrompt('Rechazar Tarea', 'Indica el motivo del rechazo:', 'Rechazado por el usuario', 'Motivo...', '⛔');
+  if (reason === null) return;
   try {
-    await apiRequest(`/api/tasks/${taskId}/reject`, 'POST', { reason });
+    await apiRequest(`/api/tasks/${taskId}/reject`, 'POST', { reason: reason || 'Rechazado por el usuario' });
+    showToast('Tarea rechazada.', 'info');
     loadTasks();
     loadDashboardData();
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, 'error');
   }
 }
 
@@ -749,20 +994,38 @@ async function createProjectBackup(projectId) {
     appendTerminalLog(`[${new Date().toLocaleTimeString()}] Ejecutando pipeline de 3 niveles para proyecto ${projectId}...\n`);
     const data = await apiRequest('/api/backups/create', 'POST', { projectId, reason: 'manual_ui_trigger' });
     appendTerminalLog(`[${new Date().toLocaleTimeString()}] Backup completado. Checksum: ${data.backup.snapshot.checksum}\n`);
-    alert(`Backup de 3 niveles completado y verificado (Checksum: ${data.backup.snapshot.checksum.substring(0, 12)}...)`);
+    showToast(`Backup de 3 niveles verificado (Checksum: ${data.backup.snapshot.checksum.substring(0, 12)}...)`, 'success');
     loadBackups();
   } catch (err) {
-    alert(`Fallo en el backup: ${err.message}`);
+    showToast(`Fallo en el backup: ${err.message}`, 'error');
   }
 }
 
 function openCreateBackupModal() {
-  apiRequest('/api/projects').then(data => {
+  apiRequest('/api/projects').then((data) => {
     if (!data.projects || data.projects.length === 0) {
-      return alert('Primero necesitas tener al menos un proyecto descubierto.');
+      return appAlert('Sin proyectos', 'Primero necesitas tener al menos un proyecto descubierto.');
     }
-    createProjectBackup(data.projects[0].id);
+    const select = document.getElementById('backupProjectSelect');
+    if (select) {
+      select.innerHTML = data.projects.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.repo_path || '')})</option>`).join('');
+      refreshCustomSelect(select);
+    }
+    document.getElementById('createBackupModal').classList.remove('hidden');
+  }).catch(err => {
+    showToast(err.message, 'error');
   });
+}
+
+async function submitCreateBackup() {
+  const select = document.getElementById('backupProjectSelect');
+  const projectId = select ? select.value : null;
+  if (!projectId) {
+    showToast('Selecciona un proyecto para el backup', 'warning');
+    return;
+  }
+  closeModal('createBackupModal');
+  await createProjectBackup(projectId);
 }
 
 /* ==========================================================================
@@ -799,12 +1062,13 @@ async function loadIntegrations() {
 }
 
 async function testIntegration(providerId) {
-  const token = prompt(`Introduce tu token/API Key de prueba para ${providerId}:`) || 'demo_token';
+  const token = await appPrompt(`Probar Conexión: ${providerId}`, `Introduce tu token o API Key de prueba para ${providerId}:`, 'demo_token', 'Token...', '🔗');
+  if (token === null) return;
   try {
-    const res = await apiRequest(`/api/integrations/${providerId}/test`, 'POST', { token });
-    alert(res.message || 'Prueba de conexión exitosa');
+    const res = await apiRequest(`/api/integrations/${providerId}/test`, 'POST', { token: token || 'demo_token' });
+    showToast(res.message || 'Prueba de conexión exitosa', 'success');
   } catch (err) {
-    alert(`Resultado de la prueba: ${err.message}`);
+    showToast(`Resultado de la prueba: ${err.message}`, 'error');
   }
 }
 
@@ -857,13 +1121,18 @@ async function toggleEmergencyLock() {
   if (statusRes.emergencyModeEnabled) {
     openEmergencyUnlockModal();
   } else {
-    if (confirm('¿ATENCIÓN: Deseas activar el MODO DE EMERGENCIA?\nEsto bloqueará inmediatamente todas las tareas, comandos y despliegues.')) {
+    const confirmed = await appConfirm(
+      'Parada de Emergencia',
+      '¿ATENCIÓN: Deseas activar el MODO DE EMERGENCIA?\nEsto bloqueará inmediatamente todas las tareas, comandos y despliegues.',
+      '⚠️'
+    );
+    if (confirmed) {
       try {
         const res = await apiRequest('/api/security/emergency-lock', 'POST');
         setEmergencyBanner(true);
-        alert(res.message);
+        showToast(res.message, 'warning');
       } catch (err) {
-        alert(err.message);
+        showToast(err.message, 'error');
       }
     }
   }
@@ -875,15 +1144,15 @@ function openEmergencyUnlockModal() {
 
 async function submitEmergencyUnlock() {
   const password = document.getElementById('emergencyUnlockPassword').value;
-  if (!password) return alert('Debes introducir tu contraseña');
+  if (!password) return showToast('Debes introducir tu contraseña', 'warning');
 
   try {
     const res = await apiRequest('/api/security/emergency-unlock', 'POST', { password });
     closeModal('emergencyUnlockModal');
     setEmergencyBanner(false);
-    alert(res.message);
+    showToast(res.message, 'success');
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, 'error');
   }
 }
 
@@ -928,19 +1197,20 @@ async function loadMonitoringAlerts() {
 async function triggerMonitoringCycle() {
   try {
     const data = await apiRequest('/api/monitoring/status');
-    alert(`Diagnóstico completado. Estado: ${data.cycle.status} (${data.cycle.newAlertsCount} nuevas alertas)`);
+    showToast(`Diagnóstico completado: ${data.cycle.status} (${data.cycle.newAlertsCount} nuevas alertas)`, 'info');
     loadMonitoringAlerts();
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, 'error');
   }
 }
 
 async function resolveAlert(alertId) {
   try {
     await apiRequest(`/api/monitoring/alerts/${alertId}/resolve`, 'POST');
+    showToast('Alerta resuelta con éxito', 'success');
     loadMonitoringAlerts();
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, 'error');
   }
 }
 
@@ -1005,10 +1275,10 @@ async function handleAdminPremiumToggle() {
   const isChecked = document.getElementById('premiumToggle').checked;
   try {
     await apiRequest('/api/premium/admin-toggle', 'POST', { enabled: isChecked });
-    alert(`Interruptor maestro de Premium actualizado a: ${isChecked ? 'ACTIVADO' : 'DESACTIVADO (DORMIDO)'}`);
+    showToast(`Interruptor maestro de Premium: ${isChecked ? 'ACTIVADO' : 'DESACTIVADO (DORMIDO)'}`, 'info');
     loadPremiumSettings();
   } catch (err) {
-    alert(err.message);
+    showToast(err.message, 'error');
     loadPremiumSettings();
   }
 }

@@ -530,6 +530,31 @@
     </div>
   </div>
 
+  <!-- Modal: Crear Backup Manual -->
+  <div id="createBackupModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2 class="modal-title">Crear Snapshot / Backup Manual</h2>
+        <button class="btn-close" onclick="closeModal('createBackupModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+          Selecciona el proyecto descubierto sobre el que deseas ejecutar el pipeline de snapshot y backup de 3 niveles con verificación criptográfica SHA-256:
+        </p>
+        <div class="form-group">
+          <label>Proyecto a Respaldar:</label>
+          <select id="backupProjectSelect" class="form-input">
+            <option value="">Cargando proyectos...</option>
+          </select>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button class="btn btn-secondary w-50" onclick="closeModal('createBackupModal')">Cancelar</button>
+          <button class="btn btn-primary w-50" onclick="submitCreateBackup()">Ejecutar Backup</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- 3. Emergency Unlock Modal -->
   <div id="emergencyUnlockModal" class="modal hidden">
     <div class="modal-card">
@@ -607,6 +632,74 @@
       </div>
     </div>
   </div>
+
+  <!-- 5. Dedicated Google Identity Connection Modal -->
+  <div id="googleAuthModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <svg width="24" height="24" viewBox="0 0 24 24">
+            <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+            <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+            <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z"/>
+            <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z"/>
+          </svg>
+          <h2 class="modal-title">Vincular Cuenta de Google</h2>
+        </div>
+        <button class="btn-close" onclick="closeModal('googleAuthModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+          Introduce tu cuenta de Google (Gmail o Workspace) para verificar automáticamente tus accesos y permisos en Antigravity y servicios Cloud asociados.
+        </p>
+
+        <div class="form-group">
+          <label>Cuenta de Google (Gmail / Workspace):</label>
+          <input type="email" id="googleModalEmailInput" class="form-input" value="guty020@gmail.com" placeholder="tu-cuenta@gmail.com">
+        </div>
+
+        <div class="verified-platforms-box">
+          <span class="platform-badge">🤖 Google Antigravity</span>
+          <span class="platform-badge">⚡ Gemini Code Assist</span>
+          <span class="platform-badge">🔥 Firebase</span>
+          <span class="platform-badge">☁️ Google Cloud</span>
+        </div>
+
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button class="btn btn-secondary w-50" onclick="closeModal('googleAuthModal')">Cancelar</button>
+          <button class="btn btn-primary w-50" onclick="confirmGoogleAuth()">Conectar y Validar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 6. Universal Custom Dialog Modal (Replaces browser prompt, alert, confirm) -->
+  <div id="appDialogModal" class="modal hidden">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span id="appDialogIcon" style="font-size: 20px;">ℹ️</span>
+          <h2 class="modal-title" id="appDialogTitle">Mensaje del Sistema</h2>
+        </div>
+        <button class="btn-close" onclick="closeAppDialog(false)">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p id="appDialogMessage" style="font-size: 13px; color: var(--text-main); margin-bottom: 16px; line-height: 1.6;"></p>
+
+        <div id="appDialogInputGroup" class="form-group hidden">
+          <input type="text" id="appDialogInput" class="form-input">
+        </div>
+
+        <div class="modal-actions" id="appDialogActions" style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px;">
+          <button id="appDialogCancelBtn" class="btn btn-secondary hidden" onclick="closeAppDialog(false)">Cancelar</button>
+          <button id="appDialogConfirmBtn" class="btn btn-primary" onclick="closeAppDialog(true)">Aceptar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast Notification Container -->
+  <div id="toastContainer" class="toast-container"></div>
 
   <script src="app.js"></script>
 </body>
