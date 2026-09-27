@@ -107,7 +107,7 @@ const monitoringInterval = setInterval(async () => {
 }, 30000);
 
 // Fallback to index.html for SPA routing
-app.get('*', (req, res) => {
+app.use((req, res) => {
   res.sendFile(path.join(CLIENT_DIR, 'index.html'));
 });
 
