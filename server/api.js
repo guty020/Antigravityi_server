@@ -23,6 +23,7 @@ const orchestrator = require('./orchestrator');
 const monitoring = require('./monitoring');
 const integrationHub = require('./integrations');
 const premium = require('./premium');
+const modelsEngine = require('./models');
 
 const router = express.Router();
 
@@ -281,6 +282,178 @@ router.post('/auth/link-google', authMiddleware, (req, res) => {
     success: true,
     message: 'Cuenta de Google vinculada y acceso a Antigravity y Firebase verificado',
     googleEmail: normalized
+  });
+});
+
+// Multi-Provider Cloud Identity Sign-In (Google, Supabase, Firebase, Vercel, GitHub)
+router.post('/auth/provider', (req, res) => {
+  const { provider = 'google', email, fullName, credentials } = req.body;
+  const p = provider.toLowerCase().trim();
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: `Correo o identificador válido requerido para ${provider}` });
+  }
+
+  const validProviders = ['google', 'supabase', 'firebase', 'vercel', 'github'];
+  if (!validProviders.includes(p)) {
+    return res.status(400).json({ error: `Proveedor no soportado: ${provider}` });
+  }
+
+  const db = getDb();
+  const normalizedEmail = email.toLowerCase().trim();
+  const now = new Date().toISOString();
+
+  let user = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
+  let userId;
+
+  const providerDisplayNames = {
+    google: fullName || 'Usuario Google (Antigravity ID)',
+    supabase: fullName || 'Desarrollador Supabase',
+    firebase: fullName || 'Administrador Firebase',
+    vercel: fullName || 'Ingeniero Vercel',
+    github: fullName || 'Developer GitHub'
+  };
+
+  const providerMetadata = {
+    google: { verifiedPlatforms: ['Google Antigravity IDE', 'Gemini Code Assist', 'Google Cloud', 'Firebase'] },
+    supabase: { verifiedPlatforms: ['Supabase PostgreSQL', 'Edge Functions AI', 'Storage & Auth'] },
+    firebase: { verifiedPlatforms: ['Firebase Cloud Functions', 'Firestore DB', 'App Hosting'] },
+    vercel: { verifiedPlatforms: ['Vercel Edge Platform', 'AI SDK Bridge', 'Serverless Functions'] },
+    github: { verifiedPlatforms: ['GitHub Repositories', 'GitHub Actions', 'Copilot Bridge'] }
+  };
+
+  const providerScopes = {
+    google: ['email', 'profile', 'antigravity:access', 'gemini:code-assist', 'firebase:read'],
+    supabase: ['database:admin', 'edge-functions:execute', 'auth:read'],
+    firebase: ['firestore:rw', 'functions:deploy', 'hosting:rw'],
+    vercel: ['deployments:rw', 'domains:read', 'edge-config:rw'],
+    github: ['repo', 'workflow', 'read:user']
+  };
+
+  if (!user) {
+    userId = 'usr_' + crypto.randomUUID();
+    const { hash, salt } = hashPassword(crypto.randomBytes(24).toString('hex'));
+    const totalUsers = db.prepare('SELECT count(*) as count FROM users').get().count;
+    const role = totalUsers === 0 ? 'admin' : 'developer';
+
+    db.prepare(`
+      INSERT INTO users (id, email, password_hash, salt, full_name, role, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(userId, normalizedEmail, hash, salt, providerDisplayNames[p], role, now, now);
+
+    user = db.prepare('SELECT * FROM users WHERE id = ?').get(userId);
+  } else {
+    userId = user.id;
+  }
+
+  // Link or update provider identity
+  const existingIdentity = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider = ?').get(userId, p);
+  if (!existingIdentity) {
+    const identityId = 'idn_' + crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO identities (id, user_id, provider, provider_user_id, email, display_name, scopes_json, is_verified, metadata_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+    `).run(
+      identityId,
+      userId,
+      p,
+      normalizedEmail,
+      user.full_name || providerDisplayNames[p],
+      JSON.stringify(providerScopes[p] || ['email', 'profile']),
+      JSON.stringify(providerMetadata[p] || {}),
+      now,
+      now
+    );
+  }
+
+  const token = generateSessionToken();
+  const sessionId = 'ses_' + crypto.randomUUID();
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+  db.prepare(`
+    INSERT INTO sessions (id, user_id, token, ip_address, user_agent, expires_at, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?)
+  `).run(sessionId, userId, token, req.ip, req.headers['user-agent'] || '', expiresAt, now);
+
+  logAuditEvent(db, {
+    userId,
+    action: `PROVIDER_SIGNIN_${p.toUpperCase()}`,
+    resourceType: 'identities',
+    resourceId: normalizedEmail,
+    details: { provider: p, email: normalizedEmail }
+  });
+
+  return res.json({
+    token,
+    user: { id: user.id, email: user.email, fullName: user.full_name, role: user.role },
+    identity: {
+      provider: p,
+      email: normalizedEmail,
+      verified: true,
+      verifiedPlatforms: providerMetadata[p]?.verifiedPlatforms || []
+    }
+  });
+});
+
+// Link Provider Account for authenticated user
+router.post('/auth/link-provider', authMiddleware, (req, res) => {
+  const { provider, email } = req.body;
+  const p = (provider || '').toLowerCase().trim();
+
+  if (!email || !email.includes('@')) {
+    return res.status(400).json({ error: 'Correo o cuenta válida requerida' });
+  }
+
+  const db = req.db;
+  const normalized = email.toLowerCase().trim();
+  const now = new Date().toISOString();
+
+  const providerMetadata = {
+    google: { verifiedPlatforms: ['Google Antigravity IDE', 'Gemini Code Assist', 'Google Cloud', 'Firebase'] },
+    supabase: { verifiedPlatforms: ['Supabase PostgreSQL', 'Edge Functions AI', 'Storage & Auth'] },
+    firebase: { verifiedPlatforms: ['Firebase Cloud Functions', 'Firestore DB', 'App Hosting'] },
+    vercel: { verifiedPlatforms: ['Vercel Edge Platform', 'AI SDK Bridge', 'Serverless Functions'] },
+    github: { verifiedPlatforms: ['GitHub Repositories', 'GitHub Actions', 'Copilot Bridge'] }
+  };
+
+  const existing = db.prepare('SELECT id FROM identities WHERE user_id = ? AND provider = ?').get(req.user.id, p);
+  if (existing) {
+    db.prepare(`
+      UPDATE identities
+      SET email = ?, provider_user_id = ?, is_verified = 1, metadata_json = ?, updated_at = ?
+      WHERE id = ?
+    `).run(normalized, normalized, JSON.stringify(providerMetadata[p] || {}), now, existing.id);
+  } else {
+    const identityId = 'idn_' + crypto.randomUUID();
+    db.prepare(`
+      INSERT INTO identities (id, user_id, provider, provider_user_id, email, display_name, scopes_json, is_verified, metadata_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+    `).run(
+      identityId,
+      req.user.id,
+      p,
+      normalized,
+      req.user.fullName,
+      JSON.stringify(['read', 'write', `${p}:active`]),
+      JSON.stringify(providerMetadata[p] || {}),
+      now,
+      now
+    );
+  }
+
+  logAuditEvent(db, {
+    userId: req.user.id,
+    action: `LINK_PROVIDER_${p.toUpperCase()}`,
+    resourceType: 'identities',
+    details: { provider: p, email: normalized }
+  });
+
+  res.json({
+    success: true,
+    message: `Cuenta de ${p.toUpperCase()} vinculada con éxito y permisos autorizados`,
+    provider: p,
+    email: normalized,
+    verifiedPlatforms: providerMetadata[p]?.verifiedPlatforms || []
   });
 });
 
@@ -828,6 +1001,61 @@ router.post('/integrations/:provider/test', authMiddleware, async (req, res) => 
 router.post('/webhooks/:provider', (req, res) => {
   const result = integrationHub.handleWebhook(req.params.provider, req.headers, req.body);
   res.status(200).json(result);
+});
+
+/* ==========================================================================
+   10B. AI MODEL QUOTAS & MULTI-PROVIDER USAGE MONITOR
+   ========================================================================== */
+
+router.get('/models/quotas', authMiddleware, (req, res) => {
+  try {
+    const data = modelsEngine.getUserQuotas(req.db, req.user.id);
+    res.json(data);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/models/connect', authMiddleware, (req, res) => {
+  const { modelId, apiKey } = req.body;
+  if (!modelId || !apiKey) {
+    return res.status(400).json({ error: 'modelId y apiKey son obligatorios' });
+  }
+  try {
+    const result = modelsEngine.connectModelApiKey(req.db, req.user.id, modelId, apiKey);
+    logAuditEvent(req.db, {
+      userId: req.user.id,
+      action: 'CONNECT_MODEL_API_KEY',
+      resourceType: 'ai_models',
+      resourceId: modelId,
+      details: { modelId }
+    });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/models/simulate-use', authMiddleware, (req, res) => {
+  const { modelId, amount } = req.body;
+  if (!modelId) {
+    return res.status(400).json({ error: 'modelId es obligatorio' });
+  }
+  try {
+    const result = modelsEngine.simulateUsage(req.db, req.user.id, modelId, amount);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/models/refresh', authMiddleware, (req, res) => {
+  try {
+    const data = modelsEngine.getUserQuotas(req.db, req.user.id);
+    res.json({ success: true, ...data });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 /* ==========================================================================

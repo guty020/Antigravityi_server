@@ -1136,6 +1136,279 @@ select.form-input option {
 input:checked + .slider { background-color: var(--accent-primary); }
 input:checked + .slider:before { transform: translateX(24px); }
 
+/* Cloud Identity Multi-Provider Buttons & Grid */
+.auth-providers-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--text-dim);
+  margin-bottom: 10px;
+  text-align: center;
+}
+
+.auth-providers-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 18px;
+}
+
+.btn-provider {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-radius: var(--radius-md);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: var(--transition);
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid var(--border-subtle);
+  color: var(--text-main);
+  outline: none;
+}
+
+.btn-provider:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.btn-provider-google {
+  grid-column: span 2;
+  background: #ffffff;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+.btn-provider-google:hover {
+  background: #f8fafc;
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+}
+
+.btn-provider-supabase {
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #a7f3d0;
+}
+.btn-provider-supabase:hover {
+  border-color: #10b981;
+  background: rgba(16, 185, 129, 0.15);
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.25);
+}
+
+.btn-provider-firebase {
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #fde68a;
+}
+.btn-provider-firebase:hover {
+  border-color: #f59e0b;
+  background: rgba(245, 158, 11, 0.15);
+  box-shadow: 0 4px 16px rgba(245, 158, 11, 0.25);
+}
+
+.btn-provider-vercel {
+  border-color: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+.btn-provider-vercel:hover {
+  border-color: #ffffff;
+  background: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 16px rgba(255, 255, 255, 0.2);
+}
+
+.btn-provider-github {
+  border-color: rgba(99, 102, 241, 0.3);
+  color: #c7d2fe;
+}
+.btn-provider-github:hover {
+  border-color: #6366f1;
+  background: rgba(99, 102, 241, 0.15);
+  box-shadow: 0 4px 16px rgba(99, 102, 241, 0.25);
+}
+
+/* Security Verification Scanner Animation */
+.auth-scanner-spinner {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto;
+  border: 3px solid rgba(99, 102, 241, 0.15);
+  border-top-color: var(--accent-primary);
+  border-right-color: var(--accent-cyan);
+  border-radius: 50%;
+  animation: spinAuth 1s cubic-bezier(0.68, -0.55, 0.27, 1.55) infinite;
+}
+
+@keyframes spinAuth {
+  to { transform: rotate(360deg); }
+}
+
+.auth-scan-progress-bar {
+  width: 100%;
+  height: 6px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: 18px;
+  border: 1px solid var(--border-subtle);
+}
+
+.auth-scan-progress-fill {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, var(--accent-primary), var(--accent-cyan));
+  border-radius: 9999px;
+  transition: width 0.4s ease;
+}
+
+/* Post-Login Authorized Identities Section */
+.authorized-identities-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+  margin-top: 14px;
+}
+
+.identity-badge-card {
+  background: rgba(15, 23, 42, 0.6);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  transition: var(--transition);
+}
+
+.identity-badge-card:hover {
+  border-color: var(--border-glow);
+  transform: translateY(-2px);
+  background: rgba(25, 34, 58, 0.7);
+}
+
+/* AI Models & Cloud Quotas Grid & Progress Bars */
+.models-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.model-meter-card {
+  background: var(--bg-surface);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  box-shadow: var(--shadow-card);
+  transition: var(--transition);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.model-meter-card:hover {
+  border-color: var(--border-glow);
+  box-shadow: var(--shadow-glow);
+  transform: translateY(-3px);
+}
+
+.meter-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.meter-title {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.meter-progress-container {
+  margin: 16px 0;
+}
+
+.meter-progress-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.meter-percentage {
+  font-size: 26px;
+  font-weight: 800;
+  font-family: var(--font-mono);
+  letter-spacing: -0.5px;
+}
+
+.meter-progress-track {
+  width: 100%;
+  height: 10px;
+  background: rgba(0, 0, 0, 0.45);
+  border-radius: 9999px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.meter-progress-bar {
+  height: 100%;
+  border-radius: 9999px;
+  transition: width 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.meter-progress-bar.meter-emerald {
+  background: linear-gradient(90deg, #10b981, #059669);
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.4);
+}
+
+.meter-progress-bar.meter-amber {
+  background: linear-gradient(90deg, #f59e0b, #d97706);
+  box-shadow: 0 0 10px rgba(245, 158, 11, 0.4);
+}
+
+.meter-progress-bar.meter-rose {
+  background: linear-gradient(90deg, #f43f5e, #e11d48);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.4);
+}
+
+.meter-stat-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 6px 0;
+  font-size: 12px;
+  color: var(--text-muted);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+.meter-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Dashboard Quotas Quick Overview */
+.dash-quotas-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.dash-quota-mini {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+
 /* Responsive Media Queries */
 @media (max-width: 1024px) {
   .dashboard-columns, .orchestrator-layout {

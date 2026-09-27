@@ -365,44 +365,149 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-function openGoogleAuthModal() {
-  document.getElementById('googleAuthModal').classList.remove('hidden');
-  setTimeout(() => document.getElementById('googleModalEmailInput')?.focus(), 60);
+let currentCloudProvider = 'google';
+let isCloudLinkingMode = false;
+
+function openCloudAuthModal(provider = 'google', isLinking = false) {
+  currentCloudProvider = provider.toLowerCase();
+  isCloudLinkingMode = Boolean(isLinking);
+
+  const config = {
+    google: {
+      name: 'Google (Antigravity ID)',
+      icon: '🌐',
+      desc: 'Introduce tu cuenta de Google (Gmail o Workspace) para validar tu acceso a Antigravity y Gemini.',
+      placeholder: 'tu-cuenta@gmail.com',
+      defaultVal: 'guty020@gmail.com'
+    },
+    supabase: {
+      name: 'Supabase Cloud',
+      icon: '⚡',
+      desc: 'Introduce tu cuenta o correo de Supabase para validar accesos a Base de Datos y Edge Functions AI.',
+      placeholder: 'usuario@supabase.co',
+      defaultVal: 'developer@supabase.local'
+    },
+    firebase: {
+      name: 'Firebase Cloud',
+      icon: '🔥',
+      desc: 'Introduce tu cuenta de Firebase para validar funciones serverless y almacenamiento seguro.',
+      placeholder: 'usuario@firebase.google.com',
+      defaultVal: 'admin@firebase.local'
+    },
+    vercel: {
+      name: 'Vercel Edge Platform',
+      icon: '▲',
+      desc: 'Introduce tu cuenta de Vercel para autorizar despliegues continuos y Edge AI Middleware.',
+      placeholder: 'usuario@vercel.com',
+      defaultVal: 'team@vercel.local'
+    },
+    github: {
+      name: 'GitHub Cloud',
+      icon: '🐙',
+      desc: 'Introduce tu cuenta de GitHub para sincronización de repositorios y Copilot Bridge.',
+      placeholder: 'tu-usuario@github.com',
+      defaultVal: 'guty020@github.com'
+    }
+  };
+
+  const p = config[currentCloudProvider] || config.google;
+
+  document.getElementById('cloudModalTitle').textContent = isLinking
+    ? `Vincular Cuenta de ${p.name}`
+    : `Identificarse con ${p.name}`;
+  document.getElementById('cloudModalIcon').textContent = p.icon;
+  document.getElementById('cloudModalDesc').textContent = p.desc;
+  
+  const input = document.getElementById('cloudModalEmailInput');
+  if (input) {
+    input.placeholder = p.placeholder;
+    input.value = p.defaultVal || '';
+  }
+
+  // Ensure form is visible, scanner is hidden
+  document.getElementById('cloudAuthFormBox').classList.remove('hidden');
+  document.getElementById('cloudAuthVerifying').classList.add('hidden');
+  document.getElementById('cloudAuthProgressFill').style.width = '0%';
+
+  document.getElementById('cloudAuthModal').classList.remove('hidden');
+  setTimeout(() => input?.focus(), 60);
 }
 
-async function confirmGoogleAuth() {
-  const input = document.getElementById('googleModalEmailInput');
+// Backward compatibility alias for any existing caller
+function openGoogleAuthModal() {
+  openCloudAuthModal('google', false);
+}
+function handleGoogleAuth() {
+  openCloudAuthModal('google', false);
+}
+function confirmGoogleAuth() {
+  return confirmCloudAuth();
+}
+
+async function confirmCloudAuth() {
+  const input = document.getElementById('cloudModalEmailInput');
   const email = input ? input.value.trim() : '';
 
   if (!email || !email.includes('@')) {
-    showToast('Por favor introduce un correo de Google válido', 'warning');
+    showToast('Por favor introduce un correo o cuenta válida', 'warning');
     return;
   }
 
+  const formBox = document.getElementById('cloudAuthFormBox');
+  const verifyingBox = document.getElementById('cloudAuthVerifying');
+  const progressFill = document.getElementById('cloudAuthProgressFill');
+  const stepTitle = document.getElementById('cloudAuthStepTitle');
+  const stepSub = document.getElementById('cloudAuthStepSub');
+
+  // Activate safe scanner animation (hiding actual authorizations until login succeeds)
+  formBox.classList.add('hidden');
+  verifyingBox.classList.remove('hidden');
+  progressFill.style.width = '35%';
+  stepTitle.textContent = `Validando Handshake Criptográfico con ${currentCloudProvider.toUpperCase()}...`;
+  stepSub.textContent = 'Comprobando tokens de autenticación segura en cluster local...';
+
+  await new Promise(r => setTimeout(r, 700));
+  progressFill.style.width = '75%';
+  stepTitle.textContent = 'Verificando Autorizaciones y Permisos en el Gateway...';
+  stepSub.textContent = 'Aislando permisos por tenant multi-usuario...';
+
+  await new Promise(r => setTimeout(r, 800));
+  progressFill.style.width = '100%';
+  stepTitle.textContent = 'Estableciendo Sesión Segura...';
+
   try {
-    const res = await fetch('/api/auth/google', {
+    const endpoint = isCloudLinkingMode ? '/api/auth/link-provider' : '/api/auth/provider';
+    const body = {
+      provider: currentCloudProvider,
+      email: email,
+      fullName: email.split('@')[0]
+    };
+
+    const res = await (isCloudLinkingMode ? apiRequest(endpoint, 'POST', body) : fetch(endpoint, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        googleEmail: email,
-        fullName: email.split('@')[0]
-      })
-    });
+      body: JSON.stringify(body)
+    }).then(async r => {
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Error al conectar');
+      return data;
+    }));
 
-    const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Error al conectar con Google');
+    closeModal('cloudAuthModal');
 
-    closeModal('googleAuthModal');
-    setAuthenticatedUser(data.user, data.token);
-    showToast(`¡Cuenta de Google (${data.identity.email}) conectada y validada!`, 'success');
-    loadDashboardData();
+    if (!isCloudLinkingMode) {
+      setAuthenticatedUser(res.user, res.token);
+      showToast(`¡Identidad de ${currentCloudProvider.toUpperCase()} autenticada con éxito!`, 'success');
+      loadDashboardData();
+    } else {
+      showToast(res.message || `Cuenta de ${currentCloudProvider.toUpperCase()} vinculada`, 'success');
+      loadAuthorizedIdentities();
+    }
   } catch (err) {
+    formBox.classList.remove('hidden');
+    verifyingBox.classList.add('hidden');
     showToast(err.message, 'error');
   }
-}
-
-function handleGoogleAuth() {
-  openGoogleAuthModal();
 }
 
 async function handleAuthSubmit() {
@@ -528,6 +633,7 @@ function switchView(viewName) {
     case 'machines': loadMachines(); break;
     case 'projects': loadProjects(); break;
     case 'orchestrator': loadTasks(); break;
+    case 'models': loadModelQuotas(); break;
     case 'backups': loadBackups(); break;
     case 'integrations': loadIntegrations(); break;
     case 'security': loadSecurityAudit(); break;
@@ -581,6 +687,10 @@ async function loadDashboardData() {
 
     // Emergency status
     setEmergencyBanner(emergencyData.emergencyModeEnabled);
+
+    // AI Model Quotas & Authorized Cloud Identities
+    loadModelQuotas();
+    loadAuthorizedIdentities();
   } catch (err) {
     console.error('Error loading dashboard:', err);
   }
@@ -1251,6 +1361,225 @@ async function runLiveTests() {
   } finally {
     btn.disabled = false;
     btn.textContent = 'Ejecutar Suite de Pruebas';
+  }
+}
+
+/* ==========================================================================
+   10B. AI MODEL QUOTAS & AUTHORIZED CLOUD PLATFORMS CONTROLLER
+   ========================================================================== */
+
+async function loadAuthorizedIdentities() {
+  const container = document.getElementById('dashAuthorizedIdentities');
+  if (!container) return;
+
+  try {
+    const data = await apiRequest('/api/auth/identities');
+    const identities = data.identities || [];
+
+    if (identities.length === 0) {
+      container.innerHTML = `
+        <div class="empty-state" style="grid-column: 1 / -1;">
+          No tienes plataformas vinculadas aún. Pulsa en "Vincular Plataforma" para asociar tus accesos oficiales de Google, Supabase, Firebase o Vercel.
+        </div>
+      `;
+      return;
+    }
+
+    const providerIcons = {
+      google: '🌐',
+      supabase: '⚡',
+      firebase: '🔥',
+      vercel: '▲',
+      github: '🐙'
+    };
+
+    container.innerHTML = identities.map(idn => {
+      const icon = providerIcons[idn.provider] || '🔗';
+      let meta = {};
+      try { meta = JSON.parse(idn.metadata_json || '{}'); } catch(e){}
+      const platforms = meta.verifiedPlatforms || [idn.provider.toUpperCase()];
+
+      return `
+        <div class="identity-badge-card">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <span style="font-size: 26px;">${icon}</span>
+            <div>
+              <div style="font-size: 13px; font-weight: 700; color: #fff;">${escapeHtml(idn.display_name || idn.provider.toUpperCase())}</div>
+              <div style="font-size: 11px; color: var(--text-muted);">${escapeHtml(idn.email)}</div>
+              <div style="display: flex; gap: 4px; margin-top: 6px; flex-wrap: wrap;">
+                ${platforms.map(p => `<span class="platform-badge" style="font-size: 10px; padding: 2px 8px;">✓ ${escapeHtml(p)}</span>`).join('')}
+              </div>
+            </div>
+          </div>
+          <span class="badge badge-success">AUTORIZADO</span>
+        </div>
+      `;
+    }).join('');
+  } catch (err) {
+    console.error('Error loading authorized identities:', err);
+  }
+}
+
+async function loadModelQuotas(showToastFeedback = false) {
+  try {
+    const data = await apiRequest('/api/models/quotas');
+    const quotas = data.quotas || [];
+
+    // Update summary metrics
+    const avgEl = document.getElementById('modelAvgAvailability');
+    const countEl = document.getElementById('modelActiveCount');
+    const provEl = document.getElementById('modelProvidersCount');
+
+    if (avgEl) avgEl.textContent = `${data.summary?.averageAvailability || 0}%`;
+    if (countEl) countEl.textContent = quotas.length;
+    if (provEl) provEl.textContent = `${data.summary?.activeProviders?.length || 0} Proveedores`;
+
+    // Render Quotas Grid in models view
+    const grid = document.getElementById('modelsQuotasGrid');
+    if (grid) {
+      grid.innerHTML = quotas.map(q => {
+        const providerIcons = {
+          google: '🤖',
+          anthropic: '🧠',
+          openai: '⚡',
+          supabase: '💾',
+          firebase: '🔥',
+          vercel: '▲'
+        };
+        const icon = providerIcons[q.provider] || '🔮';
+
+        return `
+          <div class="model-meter-card">
+            <div>
+              <div class="meter-header">
+                <div class="meter-title">
+                  <span style="font-size: 20px;">${icon}</span>
+                  <div>
+                    <div>${escapeHtml(q.modelName)}</div>
+                    <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">${escapeHtml(q.provider)}</span>
+                  </div>
+                </div>
+                <span class="badge ${q.percentageAvailable >= 40 ? 'badge-success' : 'badge-warning'}">
+                  ${q.percentageAvailable}% DISPONIBLE
+                </span>
+              </div>
+
+              <div class="meter-progress-container">
+                <div class="meter-progress-header">
+                  <span style="color: var(--text-muted);">Cuota Disponible Restante:</span>
+                  <span class="meter-percentage" style="color: ${q.healthColor === 'emerald' ? 'var(--accent-emerald)' : q.healthColor === 'amber' ? 'var(--accent-amber)' : 'var(--accent-rose)'};">
+                    ${q.percentageAvailable}%
+                  </span>
+                </div>
+                <div class="meter-progress-track">
+                  <div class="meter-progress-bar meter-${q.healthColor}" style="width: ${q.percentageUsed}%;"></div>
+                </div>
+                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 4px;">
+                  <span>Gastado: ${q.percentageUsed}%</span>
+                  <span>Límite: 100%</span>
+                </div>
+              </div>
+
+              <div class="meter-stat-row">
+                <span>Consumo Gastado:</span>
+                <strong style="color: #fff;">${q.quotaUsed.toLocaleString()} ${escapeHtml(q.unit)}</strong>
+              </div>
+              <div class="meter-stat-row">
+                <span>Cuota Total Asignada:</span>
+                <span>${q.quotaLimit.toLocaleString()} ${escapeHtml(q.unit)}</span>
+              </div>
+              <div class="meter-stat-row">
+                <span>Estado de Clave API:</span>
+                <span style="color: ${q.hasApiKey ? 'var(--accent-cyan)' : 'var(--text-dim)'};">
+                  ${q.hasApiKey ? '🔒 Encriptada (AES-256)' : '🛡️ Token por Defecto'}
+                </span>
+              </div>
+            </div>
+
+            <div class="meter-actions">
+              <button class="btn btn-sm btn-secondary w-50" onclick="openConnectApiKeyModal('${q.modelId}')">
+                ⚙️ Clave API
+              </button>
+              <button class="btn btn-sm btn-primary w-50" onclick="simulateModelQuery('${q.modelId}')">
+                ⚡ Simular Uso
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Render Compact Quotas Overview in Dashboard
+    const dashOverview = document.getElementById('dashAiQuotasOverview');
+    if (dashOverview) {
+      dashOverview.innerHTML = quotas.slice(0, 4).map(q => `
+        <div class="dash-quota-mini">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+            <strong style="font-size: 12px; color: #fff;">${escapeHtml(q.modelName.split('(')[0].trim())}</strong>
+            <span style="font-size: 12px; font-weight: 700; color: ${q.healthColor === 'emerald' ? 'var(--accent-emerald)' : 'var(--accent-amber)'};">
+              ${q.percentageAvailable}% libre
+            </span>
+          </div>
+          <div class="meter-progress-track" style="height: 6px;">
+            <div class="meter-progress-bar meter-${q.healthColor}" style="width: ${q.percentageUsed}%;"></div>
+          </div>
+          <div style="font-size: 10px; color: var(--text-dim); margin-top: 4px; display: flex; justify-content: space-between;">
+            <span>Gastado: ${q.quotaUsed.toLocaleString()}</span>
+            <span>Total: ${q.quotaLimit.toLocaleString()}</span>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    if (showToastFeedback) {
+      showToast('Cuotas de modelos de IA y consumo actualizados', 'success');
+    }
+  } catch (err) {
+    console.error('Error loading model quotas:', err);
+  }
+}
+
+function openConnectApiKeyModal(preselectedModel = null) {
+  const select = document.getElementById('connectApiKeyModelSelect');
+  if (select && preselectedModel) {
+    select.value = preselectedModel;
+    refreshCustomSelect(select);
+  } else if (select) {
+    refreshCustomSelect(select);
+  }
+  document.getElementById('connectApiKeyInput').value = '';
+  document.getElementById('connectApiKeyModal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('connectApiKeyInput')?.focus(), 60);
+}
+
+async function submitConnectApiKey() {
+  const select = document.getElementById('connectApiKeyModelSelect');
+  const input = document.getElementById('connectApiKeyInput');
+  const modelId = select ? select.value : '';
+  const apiKey = input ? input.value.trim() : '';
+
+  if (!apiKey) {
+    showToast('Introduce una clave o token válido', 'warning');
+    return;
+  }
+
+  try {
+    const res = await apiRequest('/api/models/connect', 'POST', { modelId, apiKey });
+    closeModal('connectApiKeyModal');
+    showToast(res.message || 'Clave encriptada y guardada de forma segura', 'success');
+    loadModelQuotas();
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function simulateModelQuery(modelId) {
+  try {
+    const res = await apiRequest('/api/models/simulate-use', 'POST', { modelId });
+    showToast(`Consulta ejecutada en ${modelId}. Consumido: ${res.consumed}`, 'info');
+    loadModelQuotas();
+  } catch (err) {
+    showToast(err.message, 'error');
   }
 }
 

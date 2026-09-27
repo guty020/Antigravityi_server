@@ -252,6 +252,25 @@ function initSchema(db) {
       description TEXT NOT NULL
     );
 
+    -- AI Model Quotas and Multi-Provider Usage Tracking
+    CREATE TABLE IF NOT EXISTS ai_model_quotas (
+      id TEXT PRIMARY KEY,
+      user_id TEXT NOT NULL,
+      model_id TEXT NOT NULL,
+      model_name TEXT NOT NULL,
+      provider TEXT NOT NULL,
+      quota_limit INTEGER NOT NULL DEFAULT 1000000,
+      quota_used INTEGER NOT NULL DEFAULT 0,
+      unit TEXT NOT NULL DEFAULT 'tokens/día',
+      encrypted_api_key TEXT,
+      status TEXT NOT NULL DEFAULT 'ACTIVE',
+      last_used_at TEXT,
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      UNIQUE(user_id, model_id),
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    );
+
     -- Monitoring Alerts
     CREATE TABLE IF NOT EXISTS monitoring_alerts (
       id TEXT PRIMARY KEY,

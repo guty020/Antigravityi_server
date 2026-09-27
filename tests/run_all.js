@@ -8,6 +8,7 @@ const runSecurityTests = require('./security_and_crypto.test');
 const runAntigravityTests = require('./antigravity_adapter.test');
 const runOrchestratorTests = require('./backups_and_orchestrator.test');
 const runPremiumDormantTests = require('./premium_dormant.test');
+const runModelsAndCloudIdentitiesTests = require('./models_and_cloud_identities.test');
 
 async function main() {
   console.log('===============================================================');
@@ -22,6 +23,7 @@ async function main() {
     runAntigravityTests();
     await runOrchestratorTests();
     runPremiumDormantTests();
+    runModelsAndCloudIdentitiesTests();
 
     const duration = ((Date.now() - startTime) / 1000).toFixed(2);
     console.log('\n===============================================================');
