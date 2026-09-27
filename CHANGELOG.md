@@ -2,6 +2,26 @@
 
 Todas las modificaciones notables del proyecto están documentadas en este archivo según las directrices de `16_CHANGELOG_AND_STATE.md`.
 
+## [1.1.0] - 2026-09-27
+
+### Añadido y Mejorado
+- **Comando Universal de Emparejamiento & Descarga Directa HTTP:**
+  - El servidor expone `/agent.js` y `/api/agent/download` para permitir conectar cualquier PC con un comando universal de 1 clic sin importar la carpeta de la terminal (`curl.exe -s http://localhost:4000/agent.js -o "%TEMP%\agent.js" && node ...`).
+  - Resuelve el error `Cannot find module 'C:\Users\...\agent.js'`.
+  - Botón integrado `📋 Copiar Comando` con confirmación visual instantánea (`¡Copiado!`).
+  - Guía didáctica paso a paso para desarrolladores principiantes y opciones avanzadas (PowerShell, repo local).
+- **Tarjetas Flotantes Explicativas en Menú Lateral (Popovers):**
+  - Al pasar el cursor sobre cualquiera de los 12 elementos de la barra izquierda, se despliega una tarjeta contextual de alta fidelidad.
+  - Incluye: **¿Qué es?**, **¿Para qué sirve?** y **Tip Pro** accesible tanto para perfiles noveles como seniors.
+- **Eliminación Total de Datos Simulados (Cero Falsedad):**
+  - Retiro de contadores aleatorios y números falsos de consumo. Los modelos inician en 0 consumo gastado y 100% disponible.
+  - Botón `🔍 Probar En Vivo` que realiza pings HTTP reales con latencia en milisegundos contra las APIs de Google Gemini, Vercel y Supabase.
+- **Vinculación Multimodal para Cuenta Personal (`guty020@gmail.com`):**
+  - Soporte de 3 métodos de sesión: Cuenta de Google (1 Clic SSO), Tokens / API Keys oficiales (AES-256-GCM) y Correo/Contraseña tradicional.
+  - Endpoint `/api/integrations/connect` con validación activa de credenciales en tiempo real.
+- **Botón de Copia Rápida para Proyectos:**
+  - Botón `📋 Copiar Dev` en cada tarjeta de proyecto para copiar `cd "<ruta>" && npm run dev` al portapapeles.
+
 ## [1.0.0] - 2026-09-27
 
 ### Añadido

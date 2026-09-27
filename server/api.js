@@ -608,12 +608,75 @@ router.post('/machines/generate-code', authMiddleware, (req, res) => {
     details: { pairingCode, machineName }
   });
 
+  const hostUrl = `${req.protocol}://${req.get('host')}`;
+  const universalCmd = `curl.exe -s ${hostUrl}/agent.js -o "%TEMP%\\agent.js" && node "%TEMP%\\agent.js" --server ${hostUrl} --pair ${pairingCode}`;
+  const powershellCmd = `Invoke-WebRequest -Uri "${hostUrl}/agent.js" -OutFile "$env:TEMP\\agent.js"; node "$env:TEMP\\agent.js" --server "${hostUrl}" --pair ${pairingCode}`;
+  const localCmd = `cd "${process.cwd().replace(/\\/g, '/')}" && node agent-connector/agent.js --server ${hostUrl} --pair ${pairingCode}`;
+
   res.json({
     machineId,
     pairingCode,
     expiresAt,
-    command: `node agent.js --server ${req.protocol}://${req.get('host')} --pair ${pairingCode}`
+    command: universalCmd,
+    commands: {
+      universal: universalCmd,
+      powershell: powershellCmd,
+      localRepo: localCmd,
+      linuxMac: `curl -s ${hostUrl}/agent.js -o /tmp/agent.js && node /tmp/agent.js --server ${hostUrl} --pair ${pairingCode}`
+    }
   });
+});
+
+// Endpoint for agent daemon to report discovered local projects
+router.post('/agent/report-projects', (req, res) => {
+  const token = req.headers['x-agent-token'];
+  if (!token) return res.status(401).json({ error: 'Agent token requerido' });
+
+  const db = getDb();
+  const machine = db.prepare('SELECT id, user_id FROM machines WHERE pairing_token = ?').get(token);
+  if (!machine) return res.status(401).json({ error: 'Token de agente invalido' });
+
+  const { projects = [] } = req.body;
+  const now = new Date().toISOString();
+  let count = 0;
+
+  for (const proj of projects) {
+    let existing = db.prepare('SELECT id FROM projects WHERE user_id = ? AND path = ?').get(machine.user_id, proj.path);
+    const projectId = existing ? existing.id : 'prj_' + crypto.randomUUID();
+
+    if (existing) {
+      db.prepare(`
+        UPDATE projects
+        SET name = ?, framework = ?, language = ?, runtime = ?, package_manager = ?,
+            git_branch = ?, git_remote = ?,
+            has_docker = ?, has_firebase = ?, has_supabase = ?, has_vercel = ?,
+            passport_json = ?, updated_at = ?
+        WHERE id = ?
+      `).run(
+        proj.name, proj.framework, proj.language, proj.runtime, proj.packageManager,
+        proj.git?.branch || 'main', proj.git?.remote || 'local',
+        proj.cloud?.docker ? 1 : 0, proj.cloud?.firebase ? 1 : 0, proj.cloud?.supabase ? 1 : 0, proj.cloud?.vercel ? 1 : 0,
+        JSON.stringify(proj), now, projectId
+      );
+    } else {
+      db.prepare(`
+        INSERT INTO projects (
+          id, user_id, machine_id, name, path, framework, language, runtime, package_manager,
+          git_branch, git_remote, git_last_commit, has_docker, has_firebase, has_supabase, has_vercel,
+          env_detected, env_vars_count, secrets_detected_count, passport_json, created_at, updated_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(
+        projectId, machine.user_id, machine.id, proj.name, proj.path, proj.framework, proj.language, proj.runtime, proj.packageManager,
+        proj.git?.branch || 'main', proj.git?.remote || 'local', 'Local initial state',
+        proj.cloud?.docker ? 1 : 0, proj.cloud?.firebase ? 1 : 0, proj.cloud?.supabase ? 1 : 0, proj.cloud?.vercel ? 1 : 0,
+        proj.secrets?.detected ? 1 : 0, 0, 0,
+        JSON.stringify(proj), now, now
+      );
+    }
+    count++;
+  }
+
+  res.json({ success: true, count, message: `${count} proyectos registrados con exito` });
 });
 
 // Endpoint used by the agent daemon to exchange pairing code for credentials
@@ -712,7 +775,7 @@ router.post('/projects/scan', authMiddleware, emergencyLockCheck, async (req, re
   }
 
   try {
-    const discovered = await discoveryEngine.scanDirectory(scanPath, 2);
+    const discovered = await discoveryEngine.scanDirectory(scanPath, 3);
     const now = new Date().toISOString();
     const savedProjects = [];
 
@@ -985,6 +1048,74 @@ router.get('/integrations', authMiddleware, (req, res) => {
   res.json({ available, configured });
 });
 
+router.post('/integrations/connect', authMiddleware, async (req, res) => {
+  const { provider, authMethod, email, password, token, apiKey, projectId } = req.body;
+  const db = req.db;
+  const userId = req.user.id;
+  const now = new Date().toISOString();
+
+  let testCred = token || apiKey || email;
+  let testResult = { success: true };
+
+  try {
+    const adapter = integrationHub.getAdapter(provider);
+    testResult = await adapter.testConnection(testCred);
+    if (!testResult.success) {
+      throw new Error(testResult.error || 'Fallo de autenticación con el proveedor');
+    }
+  } catch (e) {
+    return res.status(400).json({ error: e.message });
+  }
+
+  // Encrypt secrets if provided
+  let encryptedSecrets = null;
+  if (token || apiKey || password) {
+    encryptedSecrets = encryptSecret(token || apiKey || password);
+  }
+
+  const existing = db.prepare('SELECT id FROM integrations WHERE user_id = ? AND provider = ?').get(userId, provider);
+  const integrationId = existing ? existing.id : 'int_' + crypto.randomUUID();
+
+  if (existing) {
+    db.prepare(`
+      UPDATE integrations
+      SET auth_type = ?, encrypted_credentials = ?, status = 'CONNECTED', updated_at = ?
+      WHERE id = ?
+    `).run(authMethod || 'api_key', encryptedSecrets, now, integrationId);
+  } else {
+    db.prepare(`
+      INSERT INTO integrations (id, user_id, provider, auth_type, encrypted_credentials, status, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, 'CONNECTED', ?, ?)
+    `).run(integrationId, userId, provider, authMethod || 'api_key', encryptedSecrets, now, now);
+  }
+
+  // Also record verified identity
+  const idnId = 'idn_' + crypto.randomUUID();
+  db.prepare(`
+    INSERT OR REPLACE INTO identities (
+      id, user_id, provider, provider_user_id, email, display_name, scopes_json, is_verified, metadata_json, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, '["read", "write"]', 1, ?, ?, ?)
+  `).run(
+    idnId, userId, provider, email || `uid_${provider}`, email || `${provider}_account`, `${provider.toUpperCase()} (${authMethod})`,
+    JSON.stringify(testResult), now, now
+  );
+
+  logAuditEvent(db, {
+    userId,
+    action: 'CONNECT_INTEGRATION',
+    resourceType: 'integrations',
+    resourceId: integrationId,
+    details: { provider, authMethod, email }
+  });
+
+  res.json({
+    success: true,
+    provider,
+    testResult,
+    message: `¡Cuenta de ${provider.toUpperCase()} vinculada y verificada en vivo con éxito!`
+  });
+});
+
 router.post('/integrations/:provider/test', authMiddleware, async (req, res) => {
   const { provider } = req.params;
   const { token, apiKey } = req.body;
@@ -1030,6 +1161,19 @@ router.post('/models/connect', authMiddleware, (req, res) => {
       resourceId: modelId,
       details: { modelId }
     });
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+router.post('/models/verify-real', authMiddleware, async (req, res) => {
+  const { modelId } = req.body;
+  if (!modelId) {
+    return res.status(400).json({ error: 'modelId es obligatorio' });
+  }
+  try {
+    const result = await modelsEngine.verifyRealModel(req.db, req.user.id, modelId);
     res.json(result);
   } catch (err) {
     res.status(400).json({ error: err.message });

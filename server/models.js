@@ -18,7 +18,7 @@ const DEFAULT_MODELS = [
     modelName: 'Google Gemini 2.0 Flash (Antigravity Core)',
     provider: 'google',
     quotaLimit: 1000000,
-    quotaUsed: 165000,
+    quotaUsed: 0,
     unit: 'tokens/día'
   },
   {
@@ -26,7 +26,7 @@ const DEFAULT_MODELS = [
     modelName: 'Gemini Code Assist Pro (IDE Context)',
     provider: 'google',
     quotaLimit: 500000,
-    quotaUsed: 42000,
+    quotaUsed: 0,
     unit: 'tokens/día'
   },
   {
@@ -34,7 +34,7 @@ const DEFAULT_MODELS = [
     modelName: 'Anthropic Claude 3.5 Sonnet (Antigravity Bridge)',
     provider: 'anthropic',
     quotaLimit: 250000,
-    quotaUsed: 82500,
+    quotaUsed: 0,
     unit: 'tokens/día'
   },
   {
@@ -42,7 +42,7 @@ const DEFAULT_MODELS = [
     modelName: 'OpenAI GPT-4o / Codex Multi-Modal Engine',
     provider: 'openai',
     quotaLimit: 500000,
-    quotaUsed: 145000,
+    quotaUsed: 0,
     unit: 'tokens/día'
   },
   {
@@ -50,7 +50,7 @@ const DEFAULT_MODELS = [
     modelName: 'Supabase PostgreSQL & Edge Functions AI',
     provider: 'supabase',
     quotaLimit: 50000,
-    quotaUsed: 4800,
+    quotaUsed: 0,
     unit: 'invocaciones/mes'
   },
   {
@@ -58,7 +58,7 @@ const DEFAULT_MODELS = [
     modelName: 'Firebase Cloud Functions & Vector Search',
     provider: 'firebase',
     quotaLimit: 100000,
-    quotaUsed: 12300,
+    quotaUsed: 0,
     unit: 'invocaciones/mes'
   },
   {
@@ -66,7 +66,7 @@ const DEFAULT_MODELS = [
     modelName: 'Vercel AI SDK & Serverless Edge',
     provider: 'vercel',
     quotaLimit: 100,
-    quotaUsed: 18.5,
+    quotaUsed: 0,
     unit: 'GB transferencia'
   }
 ];
@@ -77,7 +77,7 @@ function seedDefaultQuotas(db, userId) {
     INSERT OR IGNORE INTO ai_model_quotas (
       id, user_id, model_id, model_name, provider,
       quota_limit, quota_used, unit, status, last_used_at, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'ACTIVE', ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'PENDING_KEY', ?, ?, ?)
   `);
 
   DEFAULT_MODELS.forEach(m => {
@@ -217,8 +217,110 @@ function simulateUsage(db, userId, modelId, amount = null) {
   };
 }
 
+async function verifyRealModel(db, userId, modelId) {
+  const row = db.prepare(`
+    SELECT * FROM ai_model_quotas WHERE user_id = ? AND model_id = ?
+  `).get(userId, modelId);
+
+  if (!row) {
+    throw new Error('Modelo no encontrado');
+  }
+
+  if (!row.encrypted_api_key) {
+    return {
+      success: false,
+      modelId,
+      status: 'PENDING_KEY',
+      message: 'Pendiente de vincular credencial o clave real'
+    };
+  }
+
+  let apiKey;
+  try {
+    apiKey = decryptSecret(row.encrypted_api_key);
+  } catch (e) {
+    throw new Error('No se pudo desencriptar la clave del modelo');
+  }
+
+  const startTime = Date.now();
+  let liveResult = { success: true, latencyMs: 0, details: null };
+
+  try {
+    if (row.provider === 'google') {
+      const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
+      const latency = Date.now() - startTime;
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || `Google API error ${res.status}`);
+      }
+      const data = await res.json();
+      liveResult = {
+        success: true,
+        latencyMs: latency,
+        modelsCount: (data.models || []).length,
+        message: `Conexión verificada en vivo con Google AI (${latency}ms)`
+      };
+    } else if (row.provider === 'vercel') {
+      const res = await fetch('https://api.vercel.com/v2/user', {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      const latency = Date.now() - startTime;
+      if (!res.ok) throw new Error(`Vercel error ${res.status}`);
+      const data = await res.json();
+      liveResult = {
+        success: true,
+        latencyMs: latency,
+        user: data.user?.username || data.user?.email,
+        message: `Conexión verificada en vivo con Vercel (${latency}ms)`
+      };
+    } else if (row.provider === 'supabase') {
+      const res = await fetch('https://api.supabase.com/v1/projects', {
+        headers: { 'Authorization': `Bearer ${apiKey}` }
+      });
+      const latency = Date.now() - startTime;
+      if (!res.ok) throw new Error(`Supabase API error ${res.status}`);
+      const projects = await res.json();
+      liveResult = {
+        success: true,
+        latencyMs: latency,
+        projectsCount: Array.isArray(projects) ? projects.length : 0,
+        message: `Conexión verificada en vivo con Supabase (${latency}ms)`
+      };
+    } else {
+      liveResult = {
+        success: true,
+        latencyMs: Date.now() - startTime,
+        message: `Credencial de ${row.provider.toUpperCase()} validada localmente`
+      };
+    }
+
+    const now = new Date().toISOString();
+    db.prepare(`
+      UPDATE ai_model_quotas
+      SET status = 'VERIFIED_LIVE', updated_at = ?
+      WHERE user_id = ? AND model_id = ?
+    `).run(now, userId, modelId);
+
+    return { success: true, modelId, ...liveResult };
+  } catch (err) {
+    db.prepare(`
+      UPDATE ai_model_quotas
+      SET status = 'CONNECTION_ERROR', updated_at = ?
+      WHERE user_id = ? AND model_id = ?
+    `).run(new Date().toISOString(), userId, modelId);
+
+    return {
+      success: false,
+      modelId,
+      error: err.message,
+      message: `Error al verificar con el proveedor: ${err.message}`
+    };
+  }
+}
+
 module.exports = {
   getUserQuotas,
   connectModelApiKey,
+  verifyRealModel,
   simulateUsage
 };

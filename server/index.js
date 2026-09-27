@@ -26,6 +26,16 @@ app.use(express.urlencoded({ extended: true, limit: '20mb' }));
 // Mount REST API
 app.use('/api', apiRouter);
 
+// Direct download/serve of agent daemon script for 1-click pairing
+app.get('/agent.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.sendFile(path.resolve(__dirname, '..', 'agent-connector', 'agent.js'));
+});
+app.get('/api/agent/download', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript');
+  res.sendFile(path.resolve(__dirname, '..', 'agent-connector', 'agent.js'));
+});
+
 // Serve static frontend files from client/
 const CLIENT_DIR = path.resolve(__dirname, '..', 'client');
 app.use(express.static(CLIENT_DIR));

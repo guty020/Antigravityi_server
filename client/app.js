@@ -17,6 +17,7 @@ window.addEventListener('DOMContentLoaded', () => {
   detectDeviceLayout();
   window.addEventListener('resize', detectDeviceLayout);
   initCustomSelects();
+  initSidebarPopovers();
   
   initAuth().then(() => {
     initWebSocket();
@@ -638,8 +639,147 @@ function switchView(viewName) {
     case 'integrations': loadIntegrations(); break;
     case 'security': loadSecurityAudit(); break;
     case 'monitoring': loadMonitoringAlerts(); break;
-    case 'premium': loadPremiumSettings(); break;
   }
+}
+
+/* ==========================================================================
+   SIDEBAR INTERACTIVE POPOVERS (Novices & Senior Devs)
+   ========================================================================== */
+
+const SIDEBAR_ITEMS_INFO = {
+  dashboard: {
+    icon: '📊',
+    title: 'Panel General',
+    category: 'PLATAFORMA',
+    whatIs: 'Centro neurálgico de mando y monitorización integral de toda tu infraestructura en tiempo real.',
+    whatFor: 'Permite inspeccionar al instante la salud del servidor, PCs en línea, proyectos activos, tareas que requieren tu aprobación y cuotas de IA.',
+    tip: 'Revisa este panel cada mañana para comprobar alertas o tareas pendientes de aprobación.'
+  },
+  onboarding: {
+    icon: '🚀',
+    title: 'Onboarding Wizard',
+    category: 'CONFIGURACIÓN GUIADA',
+    whatIs: 'Asistente interactivo automático de 16 estados secuenciales para configurar tu cluster sin fricción.',
+    whatFor: 'Guía paso a paso para vincular tu cuenta de Google/Cloud, conectar tu PC y realizar el primer descubrimiento de código sin riesgos.',
+    tip: 'Diseñado para que usuarios noveles no tengan que memorizar comandos complejos de consola.'
+  },
+  machines: {
+    icon: '🖥️',
+    title: 'PCs & Conectores',
+    category: 'INFRAESTRUCTURA LOCAL',
+    whatIs: 'Gestor de ordenadores y estaciones de trabajo vinculados mediante el demonio de agente seguro.',
+    whatFor: 'Permite emparejar tu PC con 1 solo comando copiado al portapapeles, leer proyectos locales y transmitir métricas de CPU/RAM.',
+    tip: 'El comando universal funciona desde cualquier terminal (PowerShell o CMD) sin configurar rutas.'
+  },
+  projects: {
+    icon: '📁',
+    title: 'Proyectos & Passport',
+    category: 'CATÁLOGO DE CÓDIGO',
+    whatIs: 'Catálogo técnico y "Pasaporte de Proyecto" con radiografía completa de cada repositorio.',
+    whatFor: 'Detecta automáticamente frameworks (Next.js, Vite, React, Python), dependencias, ramas Git, Docker y secretos .env protegidos.',
+    tip: 'Usa el botón "Copiar Dev" para lanzar scripts de compilación o desarrollo al instante.'
+  },
+  orchestrator: {
+    icon: '⚡',
+    title: 'Orquestador de Tareas',
+    category: 'EJECUCIÓN & CONTROL',
+    whatIs: 'Motor de automatización y canalización de scripts con clasificación de riesgo LOW, MEDIUM, HIGH y CRITICAL.',
+    whatFor: 'Ejecuta compilaciones, migraciones o limpiezas con consola en streaming y bloqueo de seguridad que exige tu confirmación.',
+    tip: 'Las operaciones de riesgo CRITICAL nunca se ejecutan sin tu consentimiento explícito.'
+  },
+  models: {
+    icon: '🤖',
+    title: 'Modelos de IA & Cuotas',
+    category: 'INTELIGENCIA ARTIFICIAL',
+    whatIs: 'Medidor en tiempo real de consumo y disponibilidad para Google Gemini, Claude, GPT-4o, Supabase y Vercel AI.',
+    whatFor: 'Supervisar cuántos tokens te quedan en el mes, verificar conexiones reales en vivo y cifrar tus API Keys con AES-256-GCM.',
+    tip: 'Vincula tu cuenta personal (guty020@gmail.com) o API Keys para ver latencia y modelos reales.'
+  },
+  backups: {
+    icon: '🛡️',
+    title: 'Backups de 3 Niveles',
+    category: 'RECUPERACIÓN ANTE DESASTRES',
+    whatIs: 'Estrategia jerárquica de copia de seguridad (Nivel 1: Snapshot local, Nivel 2: Git rescate, Nivel 3: Cloud Vault).',
+    whatFor: 'Congelar el estado íntegro de tu proyecto en archivos .tar.gz verificados con SHA-256 antes de refactorizaciones mayores.',
+    tip: 'Si un cambio falla, puedes restaurar cualquier snapshot con 1 clic sin perder código.'
+  },
+  integrations: {
+    icon: '🔗',
+    title: 'Integraciones Hub',
+    category: 'CONECTIVIDAD CLOUD',
+    whatIs: 'Hub universal para sincronizar Firebase, Supabase, Vercel, Google Cloud, GitHub y Webhooks.',
+    whatFor: 'Gestionar credenciales en la nube, probar conexiones en vivo y desplegar hacia servidores de producción de forma centralizada.',
+    tip: 'Soporta acceso con cuenta de Google (guty020@gmail.com), tokens PAT y usuario/contraseña.'
+  },
+  security: {
+    icon: '🔒',
+    title: 'Seguridad & Auditoría',
+    category: 'DEFENSA & CUMPLIMIENTO',
+    whatIs: 'Registro inmutable de auditoría (Audit Trail), detección pasiva de secretos y botón Emergency Lock.',
+    whatFor: 'Monitorear accesos por tenant, encriptación scrypt de contraseñas y pausar toda la plataforma ante una sospecha de brecha.',
+    tip: 'El botón rojo de la cabecera activa el modo de pánico bloqueando cualquier ejecución externa.'
+  },
+  monitoring: {
+    icon: '🩺',
+    title: 'Monitor 24/7 & Reparación',
+    category: 'OBSERVABILIDAD ACTIVA',
+    whatIs: 'Centinela autónomo que ejecuta diagnósticos de salud del sistema y latencias cada 30 segundos.',
+    whatFor: 'Detectar caídas de red, saturación de disco o desconexión de agentes y ofrecer recetas de auto-reparación (Self-Healing).',
+    tip: 'Si un equipo se desincroniza, el monitor intentará reanudar el WebSocket automáticamente.'
+  },
+  tests: {
+    icon: '🧪',
+    title: 'Test Center',
+    category: 'VALIDACIÓN CONTINUA',
+    whatIs: 'Suite integral de pruebas automatizadas end-to-end de todos los módulos del cluster.',
+    whatFor: 'Verificar en vivo que el aislamiento multi-tenant, criptografía, adaptación de Antigravity y cuotas pasan al 100%.',
+    tip: 'Ejecuta esta suite antes de lanzar despliegues a producción para garantizar cero regresiones.'
+  },
+  premium: {
+    icon: '💎',
+    title: 'Ajustes & Premium',
+    category: 'LICENCIAS & PREFERENCIAS',
+    whatIs: 'Configuración global y estado de la infraestructura comercial del conector.',
+    whatFor: 'Administrar ajustes del sistema y verificar el modo Dormant (inactivo a 0€ para garantizar uso gratuito ilimitado).',
+    tip: 'Todas las funcionalidades avanzadas están 100% desbloqueadas y libres de coste.'
+  }
+};
+
+function initSidebarPopovers() {
+  const card = document.getElementById('sidebarInfoCard');
+  if (!card) return;
+
+  const navItems = document.querySelectorAll('.sidebar .nav-item');
+  navItems.forEach(item => {
+    const viewName = item.getAttribute('data-view');
+    const info = SIDEBAR_ITEMS_INFO[viewName];
+    if (!info) return;
+
+    item.addEventListener('mouseenter', () => {
+      document.getElementById('popoverIcon').textContent = info.icon;
+      document.getElementById('popoverTitle').textContent = info.title;
+      document.getElementById('popoverCategory').textContent = info.category;
+      document.getElementById('popoverWhatIs').textContent = info.whatIs;
+      document.getElementById('popoverWhatFor').textContent = info.whatFor;
+      document.getElementById('popoverTip').textContent = info.tip;
+
+      const rect = item.getBoundingClientRect();
+      const cardWidth = 320;
+      card.style.left = `${rect.right + 14}px`;
+
+      const cardHeight = card.offsetHeight || 260;
+      let top = rect.top;
+      if (top + cardHeight > window.innerHeight - 10) {
+        top = window.innerHeight - cardHeight - 10;
+      }
+      card.style.top = `${Math.max(12, top)}px`;
+      card.classList.remove('hidden');
+    });
+
+    item.addEventListener('mouseleave', () => {
+      card.classList.add('hidden');
+    });
+  });
 }
 
 /* ==========================================================================
@@ -853,10 +993,74 @@ async function generatePairingCode() {
     const data = await apiRequest('/api/machines/generate-code', 'POST', { machineName: name });
     document.getElementById('pairingCodeDisplay').textContent = data.pairingCode;
     document.getElementById('pairingCliCommand').textContent = data.command;
+    
+    if (document.getElementById('pairingPsCommand') && data.commands?.powershell) {
+      document.getElementById('pairingPsCommand').textContent = data.commands.powershell;
+    }
+    if (document.getElementById('pairingLocalRepoCommand') && data.commands?.localRepo) {
+      document.getElementById('pairingLocalRepoCommand').textContent = data.commands.localRepo;
+    }
+
     document.getElementById('pairingResultBox').classList.remove('hidden');
+    showToast('Código de enlace generado. Listo para conectar tu PC.', 'info');
   } catch (err) {
     showToast(err.message, 'error');
   }
+}
+
+async function copyPairingCommand() {
+  const cmd = document.getElementById('pairingCliCommand')?.textContent;
+  if (!cmd) return;
+  try {
+    await navigator.clipboard.writeText(cmd);
+    const icon = document.getElementById('btnCopyPairIcon');
+    const text = document.getElementById('btnCopyPairText');
+    if (icon) icon.textContent = '✓';
+    if (text) text.textContent = '¡Copiado!';
+    showToast('¡Comando copiado al portapapeles! Pégalo en tu terminal (CMD o PowerShell) y pulsa Enter.', 'success');
+    setTimeout(() => {
+      if (icon) icon.textContent = '📋';
+      if (text) text.textContent = 'Copiar Comando';
+    }, 3000);
+  } catch (e) {
+    fallbackCopyText(cmd);
+  }
+}
+
+async function copySpecificCommand(elementId) {
+  const el = document.getElementById(elementId);
+  if (!el) return;
+  const cmd = el.textContent;
+  try {
+    await navigator.clipboard.writeText(cmd);
+    showToast('¡Comando copiado al portapapeles!', 'success');
+  } catch (e) {
+    fallbackCopyText(cmd);
+  }
+}
+
+async function copyProjectCommand(projectPath) {
+  const cmd = `cd "${projectPath}" && npm run dev`;
+  try {
+    await navigator.clipboard.writeText(cmd);
+    showToast(`Comando copiado: cd "${projectPath}" && npm run dev`, 'success');
+  } catch (e) {
+    fallbackCopyText(cmd);
+  }
+}
+
+function fallbackCopyText(text) {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  document.body.appendChild(textArea);
+  textArea.select();
+  try {
+    document.execCommand('copy');
+    showToast('¡Comando copiado al portapapeles!', 'success');
+  } catch (err) {
+    showToast('Selecciona el comando manualmente', 'warning');
+  }
+  document.body.removeChild(textArea);
 }
 
 /* ==========================================================================
@@ -896,8 +1100,9 @@ async function loadProjects() {
               ${p.has_vercel ? '<span class="badge badge-info">Vercel</span>' : ''}
             </div>
           </div>
-          <div style="display: flex; gap: 8px;">
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
             <button class="btn btn-sm btn-primary" onclick="triggerProjectTask('${p.id}', '${escapeHtml(p.name)}')">Lanzar Tarea</button>
+            <button class="btn btn-sm btn-secondary" onclick="copyProjectCommand('${escapeHtml(p.path.replace(/\\/g, '\\\\'))}')">📋 Copiar Dev</button>
             <button class="btn btn-sm btn-secondary" onclick="createProjectBackup('${p.id}')">Backup 3-Niveles</button>
           </div>
         </div>
@@ -1498,10 +1703,10 @@ async function loadModelQuotas(showToastFeedback = false) {
 
             <div class="meter-actions">
               <button class="btn btn-sm btn-secondary w-50" onclick="openConnectApiKeyModal('${q.modelId}')">
-                ⚙️ Clave API
+                ⚙️ Clave / Cuenta
               </button>
-              <button class="btn btn-sm btn-primary w-50" onclick="simulateModelQuery('${q.modelId}')">
-                ⚡ Simular Uso
+              <button class="btn btn-sm btn-primary w-50" onclick="verifyRealModelConnection('${q.modelId}')">
+                🔍 Probar En Vivo
               </button>
             </div>
           </div>
@@ -1573,10 +1778,18 @@ async function submitConnectApiKey() {
   }
 }
 
-async function simulateModelQuery(modelId) {
+async function verifyRealModelConnection(modelId) {
+  showToast(`Comprobando conexión en vivo con ${modelId}...`, 'info');
   try {
-    const res = await apiRequest('/api/models/simulate-use', 'POST', { modelId });
-    showToast(`Consulta ejecutada en ${modelId}. Consumido: ${res.consumed}`, 'info');
+    const res = await apiRequest('/api/models/verify-real', 'POST', { modelId });
+    if (res.success) {
+      showToast(`¡Conexión en vivo exitosa! Latencia: ${res.latencyMs}ms. ${res.message}`, 'success');
+    } else {
+      showToast(res.message || 'Error de conexión con el proveedor real', 'warning');
+      if (res.status === 'PENDING_KEY') {
+        openConnectApiKeyModal(modelId);
+      }
+    }
     loadModelQuotas();
   } catch (err) {
     showToast(err.message, 'error');

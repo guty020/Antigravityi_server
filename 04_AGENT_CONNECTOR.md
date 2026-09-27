@@ -32,14 +32,16 @@ Implementa un agente local para Windows, macOS y Linux.
 - command allow/deny policy;
 - auditoría.
 
-## Heartbeat
-Enviar estado, versión, capacidades, latencia y tareas activas.
+## Emparejamiento Rápido y Universal (1-Clic)
+- **Descarga Directa HTTP:** El servidor expone `/agent.js` para permitir la descarga y ejecución sin requerir clonar el repositorio previamente.
+- **Comando Universal Windows:**
+  ```cmd
+  curl.exe -s http://localhost:4000/agent.js -o "%TEMP%\agent.js" && node "%TEMP%\agent.js" --server http://localhost:4000 --pair <CODIGO>
+  ```
+- **PowerShell:**
+  ```powershell
+  Invoke-WebRequest -Uri "http://localhost:4000/agent.js" -OutFile "$env:TEMP\agent.js"; node "$env:TEMP\agent.js" --server "http://localhost:4000" --pair <CODIGO>
+  ```
+- **Sincronización Automática:** Al completar el emparejamiento, el agente escanea de inmediato las carpetas autorizadas de desarrollo y sincroniza los proyectos con `/api/agent/report-projects`.
+- **Copia al Portapapeles:** La interfaz web provee botón `📋 Copiar Comando` con feedback visual inmediato para usuarios principiantes y avanzados.
 
-Estados:
-ONLINE, CONNECTING, OFFLINE, ERROR, MAINTENANCE.
-
-## Ejecución
-Clasificar cada comando:
-LOW / MEDIUM / HIGH / CRITICAL.
-
-No ejecutar operaciones destructivas automáticamente.

@@ -560,23 +560,81 @@
   <!-- Modals Container -->
   <!-- 1. Pairing Modal -->
   <div id="pairingModal" class="modal hidden">
-    <div class="modal-card">
+    <div class="modal-card pairing-modal-card">
       <div class="modal-header">
-        <h2 class="modal-title">Emparejar Nuevo PC</h2>
+        <h2 class="modal-title">🖥️ Emparejar Nuevo PC con Antigravity</h2>
         <button class="btn-close" onclick="closeModal('pairingModal')">&times;</button>
       </div>
       <div class="modal-body">
-        <p>Introduce un nombre para identificar tu equipo y pulsa en Generar Código:</p>
+        <p class="text-secondary" style="font-size: 13px; line-height: 1.5; margin-bottom: 14px;">
+          Conecta tu ordenador o servidor para descubrir repositorios locales, ejecutar tareas de orquestación y monitorear hardware sin abrir puertos en tu router.
+        </p>
+        
         <div class="form-group">
-          <label>Nombre del PC:</label>
+          <label>Nombre identificativo del PC:</label>
           <input type="text" id="pairingPcName" class="form-input" value="Mi PC Principal">
         </div>
-        <button class="btn btn-primary w-100" onclick="generatePairingCode()">Generar Código Temporal</button>
+        <button class="btn btn-primary w-100" onclick="generatePairingCode()">Generar Código de Emparejamiento</button>
 
         <div id="pairingResultBox" class="pairing-code-box hidden">
+          <div class="pairing-badge-row">
+            <span class="badge badge-info">CÓDIGO DE ENLACE TEMPORAL</span>
+            <span class="pairing-timer-hint">Válido por 10 minutos</span>
+          </div>
+
           <div class="pairing-code-display" id="pairingCodeDisplay">--- ---</div>
-          <p class="pairing-instructions">Ejecuta el siguiente comando en tu terminal para emparejar:</p>
-          <code id="pairingCliCommand" class="code-box">node agent.js --server ...</code>
+
+          <!-- Beginner-Friendly Guide -->
+          <div class="pairing-guide-card">
+            <div class="guide-header">
+              <span class="guide-icon">📖</span>
+              <strong>Guía de Emparejamiento Rápido (Noveles & Seniors)</strong>
+            </div>
+            <ol class="pairing-steps-list">
+              <li><strong>Paso 1:</strong> Abre una ventana de terminal en tu ordenador (<strong>PowerShell</strong> o <strong>Símbolo del sistema / CMD</strong>). <em>No importa en qué carpeta estés.</em></li>
+              <li><strong>Paso 2:</strong> Haz clic en el botón <strong>"Copiar Comando"</strong> de abajo.</li>
+              <li><strong>Paso 3:</strong> Ve a tu terminal, pega el comando con <code>Ctrl + V</code> (o clic derecho) y presiona <code>Enter</code>.</li>
+              <li><strong>Paso 4:</strong> En pantalla verás <code>¡Emparejado con éxito!</code> y tu PC aparecerá conectado en verde, escaneando proyectos automáticamente.</li>
+            </ol>
+          </div>
+
+          <!-- Command Display with Copy Button -->
+          <div class="command-box-wrapper">
+            <div class="command-box-header">
+              <span class="command-label">⚡ Comando Universal (Copia y pega directo en terminal):</span>
+              <button id="btnCopyPairCommand" class="btn btn-sm btn-success btn-copy" onclick="copyPairingCommand()">
+                <span id="btnCopyPairIcon">📋</span> <span id="btnCopyPairText">Copiar Comando</span>
+              </button>
+            </div>
+            <div class="command-code-scroll">
+              <code id="pairingCliCommand" class="code-box-inline">curl.exe -s http://localhost:4000/agent.js -o "%TEMP%\agent.js" && node "%TEMP%\agent.js" --server http://localhost:4000 --pair ...</code>
+            </div>
+          </div>
+
+          <!-- Alternative Terminal Commands Accordion -->
+          <div class="dev-alt-options">
+            <div class="dev-alt-title">Opciones adicionales según tu consola:</div>
+            
+            <div class="alt-command-row">
+              <div class="alt-meta">
+                <strong>PowerShell:</strong>
+              </div>
+              <div class="alt-code-and-btn">
+                <code id="pairingPsCommand" class="code-pill">Invoke-WebRequest -Uri "http://localhost:4000/agent.js" -OutFile "$env:TEMP\agent.js"; node "$env:TEMP\agent.js" --server "http://localhost:4000" --pair ...</code>
+                <button class="btn btn-xs btn-secondary" onclick="copySpecificCommand('pairingPsCommand')">Copiar</button>
+              </div>
+            </div>
+
+            <div class="alt-command-row">
+              <div class="alt-meta">
+                <strong>Desde la carpeta del proyecto (si estás en MD):</strong>
+              </div>
+              <div class="alt-code-and-btn">
+                <code id="pairingLocalRepoCommand" class="code-pill">node agent-connector/agent.js --server http://localhost:4000 --pair ...</code>
+                <button class="btn btn-xs btn-secondary" onclick="copySpecificCommand('pairingLocalRepoCommand')">Copiar</button>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -834,6 +892,31 @@
           <button id="appDialogConfirmBtn" class="btn btn-primary" onclick="closeAppDialog(true)">Aceptar</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Interactive Floating Popover for Left Sidebar Items (Accessible for Novice & Senior Devs) -->
+  <div id="sidebarInfoCard" class="sidebar-popover-card hidden">
+    <div class="popover-header">
+      <span id="popoverIcon" class="popover-icon">📊</span>
+      <div>
+        <h4 id="popoverTitle" class="popover-title">Panel General</h4>
+        <span id="popoverCategory" class="popover-category">PLATAFORMA</span>
+      </div>
+    </div>
+    <div class="popover-body">
+      <div class="popover-block">
+        <div class="popover-label">¿QUÉ ES?</div>
+        <p id="popoverWhatIs" class="popover-text"></p>
+      </div>
+      <div class="popover-block">
+        <div class="popover-label">¿PARA QUÉ SIRVE?</div>
+        <p id="popoverWhatFor" class="popover-text"></p>
+      </div>
+    </div>
+    <div class="popover-footer">
+      <span class="popover-tip-label">💡 TIP:</span>
+      <span id="popoverTip" class="popover-tip-text"></span>
     </div>
   </div>
 
