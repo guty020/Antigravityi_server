@@ -1,0 +1,36 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Local databases and storage
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+data/
+storage/
+backups/
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# Build outputs and cache
+dist/
+build/
+.cache/
+coverage/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS and IDE files
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

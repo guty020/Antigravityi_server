@@ -1,0 +1,23 @@
+{
+  "name": "antigravity-connector",
+  "version": "1.0.0",
+  "description": "Plataforma multiusuario para orquestar Antigravity, Agent Connector, proyectos e integraciones.",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "test": "node tests/run_all.js",
+    "agent": "node agent-connector/agent.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/guty020/Antigravityi_server.git"
+  },
+  "author": "guty020",
+  "license": "ISC",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "ws": "^8.18.0"
+  }
+}

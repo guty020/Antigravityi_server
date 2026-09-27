@@ -1,0 +1,30 @@
+# ESTRUCTURA RECOMENDADA EN EL WORKSPACE
+
+```text
+ANTIGRAVITY-CONNECTOR/
+├── prompts/
+│   ├── 00_MASTER_ORCHESTRATOR.md
+│   ├── 01_ARCHITECTURE.md
+│   ├── 02_IDENTITY_AUTH_MULTIUSER.md
+│   ├── 03_ONBOARDING.md
+│   ├── 04_AGENT_CONNECTOR.md
+│   ├── 05_ANTIGRAVITY_ADAPTER.md
+│   ├── 06_PROJECT_DISCOVERY.md
+│   ├── 07_INTEGRATIONS.md
+│   ├── 08_ORCHESTRATOR_TASKS.md
+│   ├── 09_GIT_BACKUP_DEPLOY.md
+│   ├── 10_SECURITY_AUDIT.md
+│   ├── 11_ADAPTIVE_UI.md
+│   ├── 12_MONITORING_AUTO_REPAIR.md
+│   ├── 13_TESTING_VALIDATION.md
+│   ├── 14_DOCUMENTATION.md
+│   ├── 15_DEVELOPMENT_WORKFLOW.md
+│   ├── 16_CHANGELOG_AND_STATE.md
+│   ├── 17_PROMPT_SEQUENCE.md
+│   └── 18_PREMIUM_INFRASTRUCTURE.md
+├── docs/
+├── apps/
+├── packages/
+├── agent-connector/
+└── ...
+```
