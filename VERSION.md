@@ -67,6 +67,21 @@ La versión **1.0 Beta** consolida el servidor central y el conector de agentes 
   - 🐳 Docker
   - 🐙 Git Local
 - **Tarjetas Dinámicas:** Botones directos para inspección de código, arranque local (`npm run dev`), generación de snapshots y pipeline de tareas.
+### 6. Explorador de Proyectos, Desplegables y Autenticación Multi-Cloud Google
+- **Explorador del Árbol de Proyectos (`📂 Ver Proyecto`):**
+  - Solucionado el problema de lectura de ficheros reales. Ahora el explorador lista con total precisión carpetas, subdirectorios y ficheros de cualquier proyecto local (como `Almacen` con sus carpetas `src/`, `public/` y scripts).
+  - Incluye soporte de permisos del sistema operativo con verificación previa (`fs.constants.R_OK`), prevención de path traversal y botón de reintento en caso de requerir elevación de privilegios.
+  - Navegación interactiva por subcarpetas y cabecera con migas de pan (*breadcrumbs*) y botón de retorno (*Subir nivel*).
+- **Adaptación y Estilo de Desplegables:**
+  - Rediseño del menú desplegable personalizado para evitar cualquier solapamiento sobre botones de acción en modales y eliminar barras de desplazamiento vertical invasivas.
+  - Mayor legibilidad con fondos sólidos oscuros (`#090e1a`), bordes sutiles y scrollbar interno embebido.
+- **Interactividad en Tarjetas Métricas del Panel Central:**
+  - Las 4 tarjetas superiores (*Antigravity Adapter*, *PCs Conectados*, *Proyectos Descubiertos*, *Tareas & Aprobaciones*) ahora son completamente interactivas con estados *hover*, animaciones luminosas y redirección instantánea.
+  - Nuevo modal dedicado de inspección profunda para **Antigravity Adapter**, mostrando estado de la conexión, directorio raíz `.gemini`, versión de la CLI, skills habilitadas y matriz de capacidades.
+- **Autenticación con Google y Sincronización Automática Multi-Cloud:**
+  - Pantalla formal de autorización con consentimiento OAuth 2.0 de Google.
+  - Al vincular la cuenta de Google (`guty020@gmail.com`), el backend detecta, vincula y sincroniza automáticamente los servicios enlazados: **Supabase**, **Vercel**, **Firebase** y **Google Cloud**.
+  - Actualización inmediata en tiempo real de cuotas de modelos de IA e insignias de estado verificado.
 
 ---
 

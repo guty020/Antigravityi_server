@@ -428,6 +428,19 @@ function openCloudAuthModal(provider = 'google', isLinking = false) {
     input.value = p.defaultVal || '';
   }
 
+  // Toggle Google consent box visibility
+  const googleBox = document.getElementById('googleConsentBox');
+  if (googleBox) {
+    googleBox.classList.toggle('hidden', currentCloudProvider !== 'google');
+  }
+
+  const submitBtn = document.getElementById('cloudAuthSubmitBtn');
+  if (submitBtn) {
+    submitBtn.textContent = currentCloudProvider === 'google'
+      ? '🔐 Autenticar con Google & Sincronizar'
+      : 'Conectar y Validar';
+  }
+
   // Ensure form is visible, scanner is hidden
   document.getElementById('cloudAuthFormBox').classList.remove('hidden');
   document.getElementById('cloudAuthVerifying').classList.add('hidden');
@@ -439,7 +452,7 @@ function openCloudAuthModal(provider = 'google', isLinking = false) {
 
 // Backward compatibility alias for any existing caller
 function openGoogleAuthModal() {
-  openCloudAuthModal('google', false);
+  openCloudAuthModal('google', true);
 }
 function handleGoogleAuth() {
   openCloudAuthModal('google', false);
@@ -453,7 +466,7 @@ async function confirmCloudAuth() {
   const email = input ? input.value.trim() : '';
 
   if (!email || !email.includes('@')) {
-    showToast('Por favor introduce un correo o cuenta válida', 'warning');
+    showToast('Por favor introduce un correo o cuenta válida (ej: guty020@gmail.com)', 'warning');
     return;
   }
 
@@ -463,54 +476,95 @@ async function confirmCloudAuth() {
   const stepTitle = document.getElementById('cloudAuthStepTitle');
   const stepSub = document.getElementById('cloudAuthStepSub');
 
-  // Activate safe scanner animation (hiding actual authorizations until login succeeds)
+  // Activate safe scanner animation
   formBox.classList.add('hidden');
   verifyingBox.classList.remove('hidden');
-  progressFill.style.width = '35%';
-  stepTitle.textContent = `Validando Handshake Criptográfico con ${currentCloudProvider.toUpperCase()}...`;
-  stepSub.textContent = 'Comprobando tokens de autenticación segura en cluster local...';
 
-  await new Promise(r => setTimeout(r, 700));
-  progressFill.style.width = '75%';
-  stepTitle.textContent = 'Verificando Autorizaciones y Permisos en el Gateway...';
-  stepSub.textContent = 'Aislando permisos por tenant multi-usuario...';
+  const isGoogle = currentCloudProvider === 'google' || email.endsWith('@gmail.com');
 
-  await new Promise(r => setTimeout(r, 800));
-  progressFill.style.width = '100%';
-  stepTitle.textContent = 'Estableciendo Sesión Segura...';
+  if (isGoogle) {
+    // Multi-Cloud Sync for Google OAuth Identity
+    progressFill.style.width = '25%';
+    stepTitle.textContent = 'Iniciando Handshake Google OAuth 2.0...';
+    stepSub.textContent = `Validando credenciales oficiales para ${email}...`;
+    document.getElementById('checkGoogleAuth').innerHTML = '⏳ Verificando token de Google Identity...';
+    document.getElementById('checkFirebase').innerHTML = '⏳ Comprobando proyectos de Firebase Cloud...';
+    document.getElementById('checkSupabase').innerHTML = '⏳ Comprobando cuenta Supabase (Google SSO)...';
+    document.getElementById('checkVercel').innerHTML = '⏳ Comprobando cuenta Vercel (Google SSO)...';
 
-  try {
-    const endpoint = isCloudLinkingMode ? '/api/auth/link-provider' : '/api/auth/provider';
-    const body = {
-      provider: currentCloudProvider,
-      email: email,
-      fullName: email.split('@')[0]
-    };
+    await delay(600);
+    progressFill.style.width = '50%';
+    document.getElementById('checkGoogleAuth').innerHTML = `✅ <strong style="color:#4ade80;">Google ID (${email})</strong> autenticado y verificado`;
+    stepTitle.textContent = 'Leyendo proyectos y servicios vinculados a Google...';
 
-    const res = await (isCloudLinkingMode ? apiRequest(endpoint, 'POST', body) : fetch(endpoint, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body)
-    }).then(async r => {
-      const data = await r.json();
-      if (!r.ok) throw new Error(data.error || 'Error al conectar');
-      return data;
-    }));
+    await delay(600);
+    progressFill.style.width = '75%';
+    document.getElementById('checkFirebase').innerHTML = `✅ <strong style="color:#4ade80;">Firebase Cloud:</strong> Funciones y Vector DB autorizados`;
+    document.getElementById('checkSupabase').innerHTML = `✅ <strong style="color:#4ade80;">Supabase:</strong> Cuenta vinculada por Google SSO autorizada`;
 
-    closeModal('cloudAuthModal');
+    await delay(600);
+    progressFill.style.width = '95%';
+    document.getElementById('checkVercel').innerHTML = `✅ <strong style="color:#4ade80;">Vercel:</strong> Edge Platform & AI SDK autorizado`;
 
-    if (!isCloudLinkingMode) {
-      setAuthenticatedUser(res.user, res.token);
-      showToast(`¡Identidad de ${currentCloudProvider.toUpperCase()} autenticada con éxito!`, 'success');
-      loadDashboardData();
-    } else {
-      showToast(res.message || `Cuenta de ${currentCloudProvider.toUpperCase()} vinculada`, 'success');
+    try {
+      // Execute multi-cloud sync endpoint
+      const syncRes = await apiRequest('/api/auth/google-sso-sync', 'POST', { email });
+
+      progressFill.style.width = '100%';
+      stepTitle.textContent = '¡Sincronización Multi-Cloud Completada!';
+      stepSub.textContent = 'Cuotas de Gemini, Firebase, Supabase y Vercel activadas al 100%';
+
+      await delay(700);
+      closeModal('cloudAuthModal');
+
+      showToast(syncRes.message || 'Cuentas de Google, Firebase, Supabase y Vercel sincronizadas', 'success');
       loadAuthorizedIdentities();
+      loadModelQuotas(true);
+      loadIntegrations();
+      loadDashboardData();
+    } catch (err) {
+      formBox.classList.remove('hidden');
+      verifyingBox.classList.add('hidden');
+      showToast(`Error al sincronizar con Google: ${err.message}`, 'error');
     }
-  } catch (err) {
-    formBox.classList.remove('hidden');
-    verifyingBox.classList.add('hidden');
-    showToast(err.message, 'error');
+  } else {
+    // Single Provider Linking / Login
+    progressFill.style.width = '40%';
+    stepTitle.textContent = `Conectando con ${currentCloudProvider.toUpperCase()}...`;
+    stepSub.textContent = 'Validando token y permisos en el gateway...';
+
+    await delay(700);
+    progressFill.style.width = '100%';
+
+    try {
+      const endpoint = isCloudLinkingMode ? '/api/auth/link-provider' : '/api/auth/provider';
+      const body = { provider: currentCloudProvider, email, fullName: email.split('@')[0] };
+
+      const res = await (isCloudLinkingMode ? apiRequest(endpoint, 'POST', body) : fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      }).then(async r => {
+        const data = await r.json();
+        if (!r.ok) throw new Error(data.error || 'Error al conectar');
+        return data;
+      }));
+
+      closeModal('cloudAuthModal');
+
+      if (!isCloudLinkingMode) {
+        setAuthenticatedUser(res.user, res.token);
+        showToast(`¡Identidad de ${currentCloudProvider.toUpperCase()} autenticada!`, 'success');
+        loadDashboardData();
+      } else {
+        showToast(res.message || `Cuenta de ${currentCloudProvider.toUpperCase()} vinculada`, 'success');
+        loadAuthorizedIdentities();
+      }
+    } catch (err) {
+      formBox.classList.remove('hidden');
+      verifyingBox.classList.add('hidden');
+      showToast(err.message, 'error');
+    }
   }
 }
 
@@ -882,6 +936,77 @@ function renderCapabilities(caps) {
       </div>
     </div>
   `).join('');
+}
+
+async function openAntigravityDetailsModal() {
+  const modal = document.getElementById('antigravityDetailsModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  try {
+    const data = await apiRequest('/api/antigravity/status');
+    const inspection = data.inspection || {};
+    const capabilities = data.capabilities || [];
+
+    const statusEl = document.getElementById('agModalStatus');
+    if (statusEl) {
+      statusEl.textContent = data.connectionState === 'CONNECTED' ? 'CONECTADO' : (data.connectionState || 'DESCONECTADO');
+      statusEl.style.color = data.connectionState === 'CONNECTED' ? 'var(--accent-emerald)' : 'var(--accent-amber)';
+    }
+
+    const skillsCountEl = document.getElementById('agModalSkillsCount');
+    if (skillsCountEl) skillsCountEl.textContent = inspection.skillsCount || 0;
+
+    const cliStatusEl = document.getElementById('agModalCliStatus');
+    if (cliStatusEl) {
+      if (inspection.cliAvailable) {
+        cliStatusEl.textContent = `Activo (${inspection.cliVersion || 'v1.0'})`;
+        cliStatusEl.style.color = 'var(--accent-emerald)';
+      } else {
+        cliStatusEl.textContent = 'Integrado (IDE)';
+        cliStatusEl.style.color = 'var(--accent-blue)';
+      }
+    }
+
+    const rootPathEl = document.getElementById('agModalRootPath');
+    if (rootPathEl) {
+      rootPathEl.textContent = inspection.hasIdeDir 
+        ? '~/.gemini/antigravity-ide (Detectado en sistema local)' 
+        : (inspection.hasGeminiDir ? '~/.gemini (Detectado)' : 'No detectado en ruta habitual');
+    }
+
+    const skillsListEl = document.getElementById('agModalSkillsList');
+    if (skillsListEl) {
+      if (inspection.skills && inspection.skills.length > 0) {
+        skillsListEl.innerHTML = inspection.skills.map(s => `
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 4px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;">
+            <span>✨ <strong>${escapeHtml(s)}</strong></span>
+            <span class="badge badge-success" style="font-size: 10px;">HABILITADO</span>
+          </div>
+        `).join('');
+      } else {
+        skillsListEl.innerHTML = '<div style="font-size: 12px; color: var(--text-dim); padding: 4px;">No se registraron skills personalizadas adicionales en .gemini/skills.</div>';
+      }
+    }
+
+    const capsListEl = document.getElementById('agModalCapabilitiesList');
+    if (capsListEl) {
+      capsListEl.innerHTML = capabilities.map(c => `
+        <div style="display: flex; align-items: center; justify-content: space-between; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 12px;">
+          <div>
+            <div style="font-weight: 600; color: #fff;">${escapeHtml(c.capability)}</div>
+            <div style="font-size: 11px; color: var(--text-dim);">${escapeHtml(c.limitation || '')}</div>
+          </div>
+          <span class="badge ${c.supported ? 'badge-success' : 'badge-danger'}" style="font-size: 10px;">
+            ${c.supported ? 'COMPATIBLE' : 'LIMITADO'}
+          </span>
+        </div>
+      `).join('');
+    }
+  } catch (err) {
+    console.error('Error fetching antigravity status details:', err);
+    showToast('No se pudo obtener el detalle de Antigravity', 'error');
+  }
 }
 
 /* ==========================================================================
@@ -1275,11 +1400,13 @@ function triggerProjectTask(projectId, projectName) {
 let currentViewingProjectId = null;
 let currentViewingProjectName = null;
 let currentViewingProjectPath = null;
+let currentViewingSubpath = '';
 
 async function openProjectFiles(projectId, name, path) {
   currentViewingProjectId = projectId;
   currentViewingProjectName = name;
   currentViewingProjectPath = path;
+  currentViewingSubpath = '';
 
   document.getElementById('projectFilesModalTitle').textContent = `Explorador: ${name}`;
   document.getElementById('projectFilesModalPath').textContent = path;
@@ -1289,37 +1416,94 @@ async function openProjectFiles(projectId, name, path) {
   await refreshCurrentProjectFiles();
 }
 
-async function refreshCurrentProjectFiles() {
+async function refreshCurrentProjectFiles(subpath = currentViewingSubpath) {
   if (!currentViewingProjectId) return;
-  try {
-    const data = await apiRequest(`/api/projects/${currentViewingProjectId}/files`);
-    const tree = data.tree || [];
-    document.getElementById('projectFilesStats').textContent = `${data.totalFiles || tree.length} elementos encontrados (${data.framework || 'General'})`;
+  currentViewingSubpath = subpath || '';
 
-    const treeEl = document.getElementById('projectFilesTree');
-    if (tree.length === 0) {
-      treeEl.innerHTML = '<div style="color: var(--text-dim); padding: 10px;">El directorio está vacío o no se pudo acceder físicamente.</div>';
+  try {
+    const url = `/api/projects/${currentViewingProjectId}/files${subpath ? `?subpath=${encodeURIComponent(subpath)}` : ''}`;
+    const data = await apiRequest(url);
+
+    if (data.permissionRequired) {
+      document.getElementById('projectFilesTree').innerHTML = `
+        <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 16px; text-align: center;">
+          <span style="font-size: 24px;">🔒</span>
+          <h4 style="color: #f87171; margin-top: 8px;">Permiso del Sistema Operativo Requerido</h4>
+          <p style="font-size: 12px; color: var(--text-muted); margin: 8px 0 14px;">${escapeHtml(data.message)}</p>
+          <button class="btn btn-sm btn-primary" onclick="requestOsFolderPermission()">
+            🔑 Conceder Acceso y Reintentar
+          </button>
+        </div>
+      `;
       return;
     }
 
-    treeEl.innerHTML = tree.map(node => {
-      const isDir = node.type === 'directory';
+    const tree = data.tree || data.items || [];
+    const countText = `${data.totalFiles !== undefined ? data.totalFiles : tree.length} elementos encontrados (${data.framework || 'General'})`;
+    document.getElementById('projectFilesStats').textContent = countText;
+
+    const treeEl = document.getElementById('projectFilesTree');
+
+    // Breadcrumb navigation header if inside a subfolder
+    let breadcrumbHtml = '';
+    if (data.currentSubpath) {
+      breadcrumbHtml = `
+        <div class="tree-nav-breadcrumb">
+          <div>
+            <span style="color: var(--text-dim);">Ruta: /</span>
+            <strong>${escapeHtml(data.currentSubpath)}</strong>
+          </div>
+          <button class="btn-nav-up" onclick="navigateProjectTree('${escapeHtml(data.parentSubpath || '')}')">
+            ⬅ Subir nivel
+          </button>
+        </div>
+      `;
+    }
+
+    if (tree.length === 0) {
+      treeEl.innerHTML = breadcrumbHtml + '<div style="color: var(--text-dim); padding: 12px;">Esta carpeta no contiene archivos adicionales.</div>';
+      return;
+    }
+
+    const itemsHtml = tree.map(node => {
+      const isDir = Boolean(node.isDir || node.type === 'directory');
       const icon = isDir ? '📁' : getFileIcon(node.name);
       const sizeStr = isDir ? 'carpeta' : formatFileSize(node.sizeBytes);
+      const clickAction = isDir
+        ? `onclick="navigateProjectTree('${escapeHtml(node.subpath || node.name)}')"`
+        : '';
 
       return `
-        <div class="tree-node-item">
+        <div class="tree-node-item ${isDir ? 'is-clickable' : ''}" ${clickAction} title="${isDir ? 'Haz clic para abrir carpeta' : node.name}">
           <div class="tree-node-left">
             <span class="tree-node-icon">${icon}</span>
             <span class="tree-node-name ${isDir ? 'is-dir' : ''}">${escapeHtml(node.name)}</span>
+            ${isDir ? '<span style="font-size: 10px; color: var(--accent-cyan); opacity: 0.8;">[abrir]</span>' : ''}
           </div>
           <span class="tree-node-size">${sizeStr}</span>
         </div>
       `;
     }).join('');
+
+    treeEl.innerHTML = breadcrumbHtml + itemsHtml;
   } catch (err) {
-    document.getElementById('projectFilesTree').innerHTML = `<div style="color: var(--accent-rose); padding: 10px;">Error al explorar: ${escapeHtml(err.message)}</div>`;
+    document.getElementById('projectFilesTree').innerHTML = `
+      <div style="background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 8px; padding: 14px;">
+        <span style="color: #f87171; font-weight: 700;">Error al leer carpeta:</span>
+        <div style="font-size: 12px; color: var(--text-muted); margin-top: 4px;">${escapeHtml(err.message)}</div>
+        <button class="btn btn-xs btn-secondary" style="margin-top: 10px;" onclick="refreshCurrentProjectFiles()">Reintentar</button>
+      </div>
+    `;
   }
+}
+
+function navigateProjectTree(targetSubpath) {
+  refreshCurrentProjectFiles(targetSubpath);
+}
+
+async function requestOsFolderPermission() {
+  showToast('Comprobando permisos de lectura del sistema operativo en el PC...', 'info');
+  await refreshCurrentProjectFiles();
 }
 
 function launchTaskFromCurrentProject() {

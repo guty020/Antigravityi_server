@@ -763,6 +763,10 @@ select.form-input option {
   user-select: none;
 }
 
+.custom-select-container.open {
+  z-index: 1500;
+}
+
 .custom-select-trigger {
   display: flex;
   align-items: center;
@@ -770,7 +774,7 @@ select.form-input option {
   width: 100%;
   min-height: 42px;
   padding: 10px 14px;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(11, 17, 32, 0.85);
   border: 1px solid var(--border-subtle);
   border-radius: var(--radius-md);
   color: var(--text-main);
@@ -782,14 +786,14 @@ select.form-input option {
 }
 
 .custom-select-trigger:hover {
-  border-color: rgba(99, 102, 241, 0.5);
-  background: rgba(99, 102, 241, 0.06);
+  border-color: rgba(99, 102, 241, 0.6);
+  background: rgba(99, 102, 241, 0.08);
 }
 
 .custom-select-container.open .custom-select-trigger {
   border-color: var(--accent-primary);
-  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25), 0 4px 12px rgba(0, 0, 0, 0.4);
-  background: rgba(15, 23, 42, 0.85);
+  box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.3), 0 4px 12px rgba(0, 0, 0, 0.5);
+  background: #0f172a;
 }
 
 .custom-select-label {
@@ -814,30 +818,28 @@ select.form-input option {
 
 .custom-select-dropdown {
   position: absolute;
-  top: calc(100% + 6px);
+  top: calc(100% + 4px);
   left: 0;
   right: 0;
-  background: rgba(11, 17, 32, 0.98);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border: 1px solid rgba(99, 102, 241, 0.35);
+  background: #090e1a;
+  border: 1px solid rgba(99, 102, 241, 0.45);
   border-radius: var(--radius-md);
-  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.8), 0 0 20px rgba(99, 102, 241, 0.15);
-  z-index: 1100;
-  max-height: 240px;
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.95), 0 0 0 1px rgba(255, 255, 255, 0.06);
+  z-index: 1500;
+  max-height: 190px;
   overflow-y: auto;
-  padding: 6px;
+  padding: 4px;
   display: none;
   flex-direction: column;
   gap: 2px;
-  animation: customDropdownSlide 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  animation: customDropdownSlide 0.18s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
 .custom-select-dropdown::-webkit-scrollbar {
-  width: 6px;
+  width: 5px;
 }
 .custom-select-dropdown::-webkit-scrollbar-thumb {
-  background: rgba(99, 102, 241, 0.4);
+  background: rgba(99, 102, 241, 0.45);
   border-radius: 9999px;
 }
 .custom-select-dropdown::-webkit-scrollbar-track {
@@ -1982,3 +1984,86 @@ body.hide-btn-hints .btn-hint-text {
   border-radius: var(--radius-md);
   padding: 14px;
 }
+
+/* ==========================================================================
+   INTERACTIVE METRIC CARDS & EXPLORER TREE ENHANCEMENTS
+   ========================================================================== */
+
+.interactive-metric-card {
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.22s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.interactive-metric-card:hover {
+  transform: translateY(-4px) scale(1.01);
+  border-color: rgba(99, 102, 241, 0.7);
+  box-shadow: 0 14px 30px -8px rgba(0, 0, 0, 0.7), 0 0 24px rgba(99, 102, 241, 0.25);
+}
+
+.interactive-metric-card:active {
+  transform: translateY(-1px) scale(0.99);
+}
+
+.metric-card-arrow {
+  margin-top: 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--accent-cyan);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0.85;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+
+.interactive-metric-card:hover .metric-card-arrow {
+  opacity: 1;
+  transform: translateX(3px);
+  color: #fff;
+}
+
+.tree-node-item.is-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+
+.tree-node-item.is-clickable:hover {
+  background: rgba(99, 102, 241, 0.18);
+}
+
+.tree-nav-breadcrumb {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-subtle);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+.btn-nav-up {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(99, 102, 241, 0.2);
+  color: #c7d2fe;
+  border: 1px solid rgba(99, 102, 241, 0.4);
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.btn-nav-up:hover {
+  background: rgba(99, 102, 241, 0.35);
+  color: #fff;
+}
+
+#pipelineInputSection {
+  padding-bottom: 24px;
+}
+
