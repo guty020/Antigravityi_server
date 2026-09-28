@@ -507,8 +507,19 @@ async function confirmCloudAuth() {
     document.getElementById('checkVercel').innerHTML = `✅ <strong style="color:#4ade80;">Vercel:</strong> Edge Platform & AI SDK autorizado`;
 
     try {
-      // Execute multi-cloud sync endpoint
-      const syncRes = await apiRequest('/api/auth/google-sso-sync', 'POST', { email });
+      // Execute multi-cloud sync endpoint (handles both sign-in and account linking)
+      const headers = { 'Content-Type': 'application/json' };
+      if (STATE.token) headers['Authorization'] = `Bearer ${STATE.token}`;
+
+      const syncRes = await fetch('/api/auth/google-sso-sync', {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ email })
+      }).then(async r => {
+        const d = await r.json();
+        if (!r.ok) throw new Error(d.error || 'Error al autenticar con Google');
+        return d;
+      });
 
       progressFill.style.width = '100%';
       stepTitle.textContent = '¡Sincronización Multi-Cloud Completada!';
@@ -516,6 +527,12 @@ async function confirmCloudAuth() {
 
       await delay(700);
       closeModal('cloudAuthModal');
+      closeModal('authModal');
+
+      // Establish session if logging in or new session returned
+      if (syncRes.token && syncRes.user) {
+        setAuthenticatedUser(syncRes.user, syncRes.token);
+      }
 
       showToast(syncRes.message || 'Cuentas de Google, Firebase, Supabase y Vercel sincronizadas', 'success');
       loadAuthorizedIdentities();
@@ -525,7 +542,7 @@ async function confirmCloudAuth() {
     } catch (err) {
       formBox.classList.remove('hidden');
       verifyingBox.classList.add('hidden');
-      showToast(`Error al sincronizar con Google: ${err.message}`, 'error');
+      showToast(`Error al autenticar con Google: ${err.message}`, 'error');
     }
   } else {
     // Single Provider Linking / Login

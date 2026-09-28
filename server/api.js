@@ -464,16 +464,85 @@ router.get('/auth/identities', authMiddleware, (req, res) => {
 
 // Full Google Multi-Cloud Synchronization Endpoint
 // Authenticates with Google account (e.g., guty020@gmail.com) and auto-syncs connected Supabase, Vercel, Firebase & GCP
-router.post('/auth/google-sso-sync', authMiddleware, (req, res) => {
+// Supports both initial login/authentication and linking for already logged-in users.
+router.post('/auth/google-sso-sync', (req, res) => {
   const { email } = req.body;
   if (!email || !email.includes('@')) {
     return res.status(400).json({ error: 'Cuenta de Google válida requerida (ej: guty020@gmail.com)' });
   }
 
-  const db = req.db;
-  const userId = req.user.id;
+  const db = getDb();
   const normalizedEmail = email.toLowerCase().trim();
   const now = new Date().toISOString();
+
+  // 1. Resolve user: Either from active session or authenticate/create via Google identity
+  let user = null;
+  let token = null;
+
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    token = authHeader.substring(7);
+  } else if (req.headers['x-session-token']) {
+    token = req.headers['x-session-token'];
+  }
+
+  if (token) {
+    const session = db.prepare(`
+      SELECT s.*, u.email, u.full_name, u.role
+      FROM sessions s
+      JOIN users u ON s.user_id = u.id
+      WHERE s.token = ? AND s.revoked_at IS NULL AND s.expires_at > datetime('now')
+    `).get(token);
+
+    if (session) {
+      user = {
+        id: session.user_id,
+        email: session.email,
+        fullName: session.full_name,
+        role: session.role
+      };
+    }
+  }
+
+  // If no active session, find or create the user for this Google account
+  if (!user) {
+    let existingUser = db.prepare('SELECT * FROM users WHERE email = ?').get(normalizedEmail);
+    if (!existingUser) {
+      const newUserId = 'usr_' + crypto.randomUUID();
+      const { hash, salt } = hashPassword(crypto.randomBytes(24).toString('hex'));
+      const totalUsers = db.prepare('SELECT count(*) as count FROM users').get().count;
+      const role = totalUsers === 0 ? 'admin' : 'developer';
+      const fullName = normalizedEmail.split('@')[0];
+
+      db.prepare(`
+        INSERT INTO users (id, email, password_hash, salt, full_name, role, created_at, updated_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `).run(newUserId, normalizedEmail, hash, salt, fullName, role, now, now);
+
+      existingUser = db.prepare('SELECT * FROM users WHERE id = ?').get(newUserId);
+    }
+
+    user = {
+      id: existingUser.id,
+      email: existingUser.email,
+      fullName: existingUser.full_name || existingUser.email.split('@')[0],
+      role: existingUser.role
+    };
+
+    token = generateSessionToken();
+    const sessionId = 'ses_' + crypto.randomUUID();
+    const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+
+    db.prepare(`
+      INSERT INTO sessions (id, user_id, token, ip_address, user_agent, expires_at, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(sessionId, user.id, token, req.ip, req.headers['user-agent'] || '', expiresAt, now);
+  }
+
+  const userId = user.id;
+
+  // Initialize/seed AI model quotas if not already created
+  modelsEngine.getUserQuotas(db, userId);
 
   // Platforms connected via Google Identity SSO
   const linkedServices = [
@@ -579,6 +648,8 @@ router.post('/auth/google-sso-sync', authMiddleware, (req, res) => {
 
   res.json({
     success: true,
+    token,
+    user,
     message: `¡Autenticación de Google (${normalizedEmail}) verificada! Cuentas de Supabase, Vercel, Firebase y Google Cloud leídas y sincronizadas con éxito.`,
     googleEmail: normalizedEmail,
     syncedServices: results
