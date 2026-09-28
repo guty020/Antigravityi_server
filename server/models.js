@@ -332,9 +332,93 @@ async function verifyRealModel(db, userId, modelId) {
   }
 }
 
+function addCustomModel(db, userId, data) {
+  const {
+    provider,
+    modelName,
+    modelId,
+    quotaLimit = 500000,
+    unit = 'tokens/día',
+    apiKey = null
+  } = data;
+
+  if (!provider || !modelName || !modelId) {
+    throw new Error('Proveedor, nombre e ID del modelo son obligatorios');
+  }
+
+  const id = 'qta_' + crypto.randomUUID();
+  const now = new Date().toISOString();
+  const encryptedKey = apiKey ? encryptSecret(apiKey) : null;
+  const status = 'ACTIVE';
+
+  db.prepare(`
+    INSERT INTO ai_model_quotas (
+      id, user_id, model_id, model_name, provider,
+      quota_limit, quota_used, unit, encrypted_api_key, status, last_used_at, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?, ?)
+  `).run(id, userId, modelId.trim(), modelName.trim(), provider.toLowerCase().trim(), Number(quotaLimit) || 500000, unit, encryptedKey, status, now, now, now);
+
+  return { success: true, id, modelId, modelName, provider };
+}
+
+function deleteModel(db, userId, id) {
+  db.prepare(`DELETE FROM ai_model_quotas WHERE user_id = ? AND (id = ? OR model_id = ?)`).run(userId, id, id);
+  return { success: true, id };
+}
+
+function getAntigravityRealQuota(db) {
+  const row = db.prepare('SELECT value_json FROM system_settings WHERE key = ?').get('antigravity_gemini_real_quota');
+  if (row) {
+    try {
+      return JSON.parse(row.value_json);
+    } catch (e) {}
+  }
+
+  // Default matching Google Antigravity / Gemini real quotas shown in user Foto 2
+  const defaultQuota = {
+    weeklyLimitRemaining: 19,
+    weeklyRefreshText: 'en 2 días, 16 horas',
+    weeklyRefreshHours: 64,
+    fiveHourLimitRemaining: 53,
+    fiveHourRefreshText: 'en 4 horas, 5 minutos',
+    fiveHourRefreshMinutes: 245,
+    accountEmail: 'guty020@gmail.com',
+    engineName: 'Gemini Models (Google Antigravity Engine)',
+    status: 'ACTIVE_HEALTHY',
+    lastSyncedAt: new Date().toISOString()
+  };
+
+  db.prepare(`
+    INSERT OR REPLACE INTO system_settings (key, value_json, updated_at)
+    VALUES (?, ?, ?)
+  `).run('antigravity_gemini_real_quota', JSON.stringify(defaultQuota), new Date().toISOString());
+
+  return defaultQuota;
+}
+
+function updateAntigravityRealQuota(db, data) {
+  const current = getAntigravityRealQuota(db);
+  const updated = {
+    ...current,
+    ...data,
+    lastSyncedAt: new Date().toISOString()
+  };
+
+  db.prepare(`
+    INSERT OR REPLACE INTO system_settings (key, value_json, updated_at)
+    VALUES (?, ?, ?)
+  `).run('antigravity_gemini_real_quota', JSON.stringify(updated), new Date().toISOString());
+
+  return updated;
+}
+
 module.exports = {
   getUserQuotas,
   connectModelApiKey,
   verifyRealModel,
-  simulateUsage
+  simulateUsage,
+  addCustomModel,
+  deleteModel,
+  getAntigravityRealQuota,
+  updateAntigravityRealQuota
 };

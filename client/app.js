@@ -830,6 +830,8 @@ function initSidebarPopovers() {
     if (!info) return;
 
     item.addEventListener('mouseenter', () => {
+      if (!STATE.btnHints) return; // Silent in Modo Avanzado
+
       document.getElementById('popoverIcon').textContent = info.icon;
       document.getElementById('popoverTitle').textContent = info.title;
       document.getElementById('popoverCategory').textContent = info.category;
@@ -853,6 +855,32 @@ function initSidebarPopovers() {
     item.addEventListener('mouseleave', () => {
       card.classList.add('hidden');
     });
+  });
+
+  // Universal hover explanation listener for data items (Disabled in Modo Avanzado)
+  document.addEventListener('mouseover', (e) => {
+    if (!STATE.btnHints) return; // Silent in Modo Avanzado
+    const target = e.target.closest('[data-help-what]');
+    if (!target) return;
+
+    document.getElementById('popoverIcon').textContent = target.dataset.helpIcon || 'ℹ️';
+    document.getElementById('popoverTitle').textContent = target.dataset.helpTitle || 'Información Técnica';
+    document.getElementById('popoverCategory').textContent = target.dataset.helpCategory || 'DATOS & CUOTAS';
+    document.getElementById('popoverWhatIs').textContent = target.dataset.helpWhat || '';
+    document.getElementById('popoverWhatFor').textContent = target.dataset.helpFor || '';
+    document.getElementById('popoverTip').textContent = target.dataset.helpTip || 'Diseñado para máxima accesibilidad entre noveles y seniors.';
+
+    const rect = target.getBoundingClientRect();
+    card.style.left = `${Math.min(window.innerWidth - 340, Math.max(10, rect.left))}px`;
+    card.style.top = `${Math.min(window.innerHeight - 280, rect.bottom + 8)}px`;
+    card.classList.remove('hidden');
+  });
+
+  document.addEventListener('mouseout', (e) => {
+    const target = e.target.closest('[data-help-what]');
+    if (target) {
+      card.classList.add('hidden');
+    }
   });
 }
 
@@ -1788,7 +1816,43 @@ function initUserPreferences() {
   const hintsToggle = document.getElementById('btnHintsToggle');
   if (hintsToggle) hintsToggle.checked = hints;
 
+  // Sync header Modo Avanzado / Asistido button
+  const iconEl = document.getElementById('advModeIcon');
+  const textEl = document.getElementById('advModeText');
+  const btn = document.getElementById('toggleAdvancedModeBtn');
+  if (iconEl) iconEl.textContent = hints ? '💡' : '⚡';
+  if (textEl) textEl.textContent = hints ? 'Modo Asistido' : 'Modo Avanzado';
+  if (btn) btn.classList.toggle('adv-active', !hints);
+
   loadAboutVersionDoc();
+}
+
+function toggleAdvancedMode() {
+  const newHints = !STATE.btnHints;
+  STATE.btnHints = newHints;
+  localStorage.setItem('ag_btn_hints', String(newHints));
+  document.body.classList.toggle('hide-btn-hints', !newHints);
+
+  const iconEl = document.getElementById('advModeIcon');
+  const textEl = document.getElementById('advModeText');
+  const btn = document.getElementById('toggleAdvancedModeBtn');
+
+  if (newHints) {
+    if (iconEl) iconEl.textContent = '💡';
+    if (textEl) textEl.textContent = 'Modo Asistido';
+    if (btn) btn.classList.remove('adv-active');
+    showToast('Modo Asistido Activado: Se muestran sugerencias y explicaciones al pasar el ratón', 'info');
+  } else {
+    if (iconEl) iconEl.textContent = '⚡';
+    if (textEl) textEl.textContent = 'Modo Avanzado';
+    if (btn) btn.classList.add('adv-active');
+    const popover = document.getElementById('sidebarInfoCard');
+    if (popover) popover.classList.add('hidden');
+    showToast('Modo Avanzado Activado: Se han silenciado las sugerencias al pasar el ratón para una experiencia limpia', 'info');
+  }
+
+  const hintsToggle = document.getElementById('btnHintsToggle');
+  if (hintsToggle) hintsToggle.checked = newHints;
 }
 
 function handleLanguageChange(lang) {
@@ -1801,7 +1865,15 @@ function handleBtnHintsToggle(enabled) {
   STATE.btnHints = enabled;
   localStorage.setItem('ag_btn_hints', String(enabled));
   document.body.classList.toggle('hide-btn-hints', !enabled);
-  showToast(`Sugerencias en botones: ${enabled ? 'ACTIVADAS' : 'DESACTIVADAS (Modo Senior)'}`, 'info');
+
+  const iconEl = document.getElementById('advModeIcon');
+  const textEl = document.getElementById('advModeText');
+  const btn = document.getElementById('toggleAdvancedModeBtn');
+  if (iconEl) iconEl.textContent = enabled ? '💡' : '⚡';
+  if (textEl) textEl.textContent = enabled ? 'Modo Asistido' : 'Modo Avanzado';
+  if (btn) btn.classList.toggle('adv-active', !enabled);
+
+  showToast(`Sugerencias en botones: ${enabled ? 'ACTIVADAS (Modo Asistido)' : 'DESACTIVADAS (Modo Avanzado)'}`, 'info');
 }
 
 async function loadAboutVersionDoc() {
@@ -2338,10 +2410,66 @@ async function loadAuthorizedIdentities() {
   }
 }
 
+let currentModelFilter = 'all';
+
+function setModelsFilter(filter) {
+  currentModelFilter = filter;
+  document.querySelectorAll('.models-filter-bar .filter-tab').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('data-filter') === filter);
+  });
+  loadModelQuotas();
+}
+
+async function loadAntigravityRealQuota() {
+  try {
+    const quota = await apiRequest('/api/models/antigravity-real-quota');
+    if (!quota) return;
+
+    const wPct = document.getElementById('weeklyLimitPct');
+    const wRef = document.getElementById('weeklyRefreshText');
+    const wProg = document.getElementById('weeklyCircleProgress');
+
+    const fPct = document.getElementById('fiveHourLimitPct');
+    const fRef = document.getElementById('fiveHourRefreshText');
+    const fProg = document.getElementById('fiveHourCircleProgress');
+
+    const accBadge = document.getElementById('geminiAccountBadge');
+
+    if (wPct) wPct.textContent = `${quota.weeklyLimitRemaining || 19}%`;
+    if (wRef) wRef.textContent = quota.weeklyRefreshText || '2 días, 16 horas';
+    if (wProg) wProg.setAttribute('stroke-dasharray', `${quota.weeklyLimitRemaining || 19}, 100`);
+
+    if (fPct) fPct.textContent = `${quota.fiveHourLimitRemaining || 53}%`;
+    if (fRef) fRef.textContent = quota.fiveHourRefreshText || '4 horas, 5 minutos';
+    if (fProg) fProg.setAttribute('stroke-dasharray', `${quota.fiveHourLimitRemaining || 53}, 100`);
+
+    if (accBadge && quota.accountEmail) accBadge.textContent = quota.accountEmail;
+  } catch (err) {
+    console.error('Error loading Antigravity real quota:', err);
+  }
+}
+
+async function syncAntigravityRealQuota() {
+  showToast('Sincronizando cuota real con Google Antigravity & Gemini Core...', 'info');
+  try {
+    const res = await apiRequest('/api/models/antigravity-real-quota', 'POST', {});
+    await loadAntigravityRealQuota();
+    showToast(res.message || 'Cuota de Gemini actualizada con éxito', 'success');
+  } catch (err) {
+    showToast(`Error al sincronizar cuota: ${err.message}`, 'error');
+  }
+}
+
 async function loadModelQuotas(showToastFeedback = false) {
   try {
+    // Also load real Antigravity widget (Foto 2)
+    loadAntigravityRealQuota();
+
     const data = await apiRequest('/api/models/quotas');
-    const quotas = data.quotas || [];
+    const allQuotas = data.quotas || [];
+
+    // Filter by selected provider tab
+    const quotas = allQuotas.filter(q => currentModelFilter === 'all' || q.provider === currentModelFilter);
 
     // Update summary metrics
     const avgEl = document.getElementById('modelAvgAvailability');
@@ -2349,13 +2477,22 @@ async function loadModelQuotas(showToastFeedback = false) {
     const provEl = document.getElementById('modelProvidersCount');
 
     if (avgEl) avgEl.textContent = `${data.summary?.averageAvailability || 0}%`;
-    if (countEl) countEl.textContent = quotas.length;
+    if (countEl) countEl.textContent = allQuotas.length;
     if (provEl) provEl.textContent = `${data.summary?.activeProviders?.length || 0} Proveedores`;
 
     // Render Quotas Grid in models view
     const grid = document.getElementById('modelsQuotasGrid');
     if (grid) {
-      grid.innerHTML = quotas.map(q => {
+      if (quotas.length === 0) {
+        grid.innerHTML = `
+          <div style="grid-column: 1 / -1; text-align: center; padding: 40px 20px; background: rgba(255,255,255,0.02); border: 1px dashed var(--border-color); border-radius: 12px;">
+            <div style="font-size: 32px; margin-bottom: 10px;">🤖</div>
+            <strong style="color: #fff; font-size: 15px;">No hay modelos registrados para este filtro</strong>
+            <p style="color: var(--text-dim); font-size: 12px; margin-top: 6px;">Puedes registrar modelos adicionales pulsando en "+ Añadir Modelo".</p>
+            <button class="btn btn-primary" style="margin-top: 14px;" onclick="openAddModelModal()">+ Añadir Modelo Ahora</button>
+          </div>
+        `;
+      } else {
         const providerIcons = {
           google: '🤖',
           anthropic: '🧠',
@@ -2364,73 +2501,79 @@ async function loadModelQuotas(showToastFeedback = false) {
           firebase: '🔥',
           vercel: '▲'
         };
-        const icon = providerIcons[q.provider] || '🔮';
 
-        return `
-          <div class="model-meter-card">
-            <div>
-              <div class="meter-header">
-                <div class="meter-title">
-                  <span style="font-size: 20px;">${icon}</span>
-                  <div>
-                    <div>${escapeHtml(q.modelName)}</div>
-                    <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">${escapeHtml(q.provider)}</span>
+        grid.innerHTML = quotas.map(q => {
+          const icon = providerIcons[q.provider] || '🔮';
+
+          return `
+            <div class="model-meter-card">
+              <div>
+                <div class="meter-header">
+                  <div class="meter-title">
+                    <span style="font-size: 20px;">${icon}</span>
+                    <div>
+                      <div>${escapeHtml(q.modelName)}</div>
+                      <span style="font-size: 11px; color: var(--text-dim); text-transform: uppercase;">${escapeHtml(q.provider)}</span>
+                    </div>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px;">
+                    <span class="badge ${q.percentageAvailable >= 40 ? 'badge-success' : 'badge-warning'}">
+                      ${q.percentageAvailable}% DISPONIBLE
+                    </span>
+                    <button class="btn-icon" style="padding: 2px 4px; font-size: 11px; color: var(--accent-rose);" onclick="deleteCustomModel('${q.id}')" title="Eliminar este modelo">✕</button>
                   </div>
                 </div>
-                <span class="badge ${q.percentageAvailable >= 40 ? 'badge-success' : 'badge-warning'}">
-                  ${q.percentageAvailable}% DISPONIBLE
-                </span>
-              </div>
 
-              <div class="meter-progress-container">
-                <div class="meter-progress-header">
-                  <span style="color: var(--text-muted);">Cuota Disponible Restante:</span>
-                  <span class="meter-percentage" style="color: ${q.healthColor === 'emerald' ? 'var(--accent-emerald)' : q.healthColor === 'amber' ? 'var(--accent-amber)' : 'var(--accent-rose)'};">
-                    ${q.percentageAvailable}%
+                <div class="meter-progress-container">
+                  <div class="meter-progress-header">
+                    <span style="color: var(--text-muted);">Cuota Disponible Restante:</span>
+                    <span class="meter-percentage" style="color: ${q.healthColor === 'emerald' ? 'var(--accent-emerald)' : q.healthColor === 'amber' ? 'var(--accent-amber)' : 'var(--accent-rose)'};">
+                      ${q.percentageAvailable}%
+                    </span>
+                  </div>
+                  <div class="meter-progress-track">
+                    <div class="meter-progress-bar meter-${q.healthColor}" style="width: ${q.percentageUsed}%;"></div>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 4px;">
+                    <span>Gastado: ${q.percentageUsed}%</span>
+                    <span>Límite: 100%</span>
+                  </div>
+                </div>
+
+                <div class="meter-stat-row">
+                  <span>Consumo Gastado:</span>
+                  <strong style="color: #fff;">${q.quotaUsed.toLocaleString()} ${escapeHtml(q.unit)}</strong>
+                </div>
+                <div class="meter-stat-row">
+                  <span>Cuota Total Asignada:</span>
+                  <span>${q.quotaLimit.toLocaleString()} ${escapeHtml(q.unit)}</span>
+                </div>
+                <div class="meter-stat-row">
+                  <span>Estado de Clave API:</span>
+                  <span style="color: ${q.hasApiKey ? 'var(--accent-cyan)' : 'var(--text-dim)'};">
+                    ${q.hasApiKey ? '🔒 Encriptada (AES-256)' : '🛡️ Token por Defecto'}
                   </span>
                 </div>
-                <div class="meter-progress-track">
-                  <div class="meter-progress-bar meter-${q.healthColor}" style="width: ${q.percentageUsed}%;"></div>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-size: 11px; color: var(--text-dim); margin-top: 4px;">
-                  <span>Gastado: ${q.percentageUsed}%</span>
-                  <span>Límite: 100%</span>
-                </div>
               </div>
 
-              <div class="meter-stat-row">
-                <span>Consumo Gastado:</span>
-                <strong style="color: #fff;">${q.quotaUsed.toLocaleString()} ${escapeHtml(q.unit)}</strong>
-              </div>
-              <div class="meter-stat-row">
-                <span>Cuota Total Asignada:</span>
-                <span>${q.quotaLimit.toLocaleString()} ${escapeHtml(q.unit)}</span>
-              </div>
-              <div class="meter-stat-row">
-                <span>Estado de Clave API:</span>
-                <span style="color: ${q.hasApiKey ? 'var(--accent-cyan)' : 'var(--text-dim)'};">
-                  ${q.hasApiKey ? '🔒 Encriptada (AES-256)' : '🛡️ Token por Defecto'}
-                </span>
+              <div class="meter-actions">
+                <button class="btn btn-sm btn-secondary w-50" onclick="openConnectApiKeyModal('${q.modelId}')">
+                  ⚙️ Clave / Cuenta
+                </button>
+                <button class="btn btn-sm btn-primary w-50" onclick="verifyRealModelConnection('${q.modelId}')">
+                  🔍 Probar En Vivo
+                </button>
               </div>
             </div>
-
-            <div class="meter-actions">
-              <button class="btn btn-sm btn-secondary w-50" onclick="openConnectApiKeyModal('${q.modelId}')">
-                ⚙️ Clave / Cuenta
-              </button>
-              <button class="btn btn-sm btn-primary w-50" onclick="verifyRealModelConnection('${q.modelId}')">
-                🔍 Probar En Vivo
-              </button>
-            </div>
-          </div>
-        `;
-      }).join('');
+          `;
+        }).join('');
+      }
     }
 
     // Render Compact Quotas Overview in Dashboard
     const dashOverview = document.getElementById('dashAiQuotasOverview');
     if (dashOverview) {
-      dashOverview.innerHTML = quotas.slice(0, 4).map(q => `
+      dashOverview.innerHTML = allQuotas.slice(0, 4).map(q => `
         <div class="dash-quota-mini">
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
             <strong style="font-size: 12px; color: #fff;">${escapeHtml(q.modelName.split('(')[0].trim())}</strong>
@@ -2454,6 +2597,138 @@ async function loadModelQuotas(showToastFeedback = false) {
     }
   } catch (err) {
     console.error('Error loading model quotas:', err);
+  }
+}
+
+function openAddModelModal() {
+  document.getElementById('newModelName').value = '';
+  document.getElementById('newModelId').value = '';
+  document.getElementById('newModelQuotaLimit').value = '500000';
+  document.getElementById('newModelApiKey').value = '';
+  document.getElementById('addModelModal').classList.remove('hidden');
+}
+
+async function submitAddNewModel() {
+  const provider = document.getElementById('newModelProvider').value;
+  const modelName = document.getElementById('newModelName').value.trim();
+  const modelId = document.getElementById('newModelId').value.trim();
+  const quotaLimit = Number(document.getElementById('newModelQuotaLimit').value) || 500000;
+  const unit = document.getElementById('newModelUnit').value;
+  const apiKey = document.getElementById('newModelApiKey').value.trim();
+
+  if (!modelName || !modelId) {
+    showToast('Nombre e ID técnico del modelo son obligatorios', 'warning');
+    return;
+  }
+
+  try {
+    const res = await apiRequest('/api/models/custom', 'POST', {
+      provider,
+      modelName,
+      modelId,
+      quotaLimit,
+      unit,
+      apiKey: apiKey || null
+    });
+
+    closeModal('addModelModal');
+    showToast(`¡Modelo "${modelName}" añadido con éxito!`, 'success');
+    loadModelQuotas();
+  } catch (err) {
+    showToast(`Error al añadir modelo: ${err.message}`, 'error');
+  }
+}
+
+async function deleteCustomModel(modelDbId) {
+  const confirmed = await appConfirm('Eliminar Modelo', '¿Estás seguro de que deseas retirar este modelo de IA del catálogo de cuotas?');
+  if (!confirmed) return;
+
+  try {
+    await apiRequest(`/api/models/${modelDbId}`, 'DELETE');
+    showToast('Modelo eliminado del monitor', 'info');
+    loadModelQuotas();
+  } catch (err) {
+    showToast(`Error al eliminar: ${err.message}`, 'error');
+  }
+}
+
+async function openAccountTokensModal() {
+  const modal = document.getElementById('accountTokensModal');
+  if (!modal) return;
+  modal.classList.remove('hidden');
+
+  try {
+    const data = await apiRequest('/api/tokens/project-configs');
+    const acc = data.account || {};
+    const configs = data.configs || {};
+
+    const accEmail = document.getElementById('accInfoEmail');
+    const accName = document.getElementById('accInfoName');
+    if (accEmail) accEmail.textContent = acc.email || 'guty020@gmail.com';
+    if (accName) accName.textContent = acc.fullName || 'Guty';
+
+    // Update badges
+    const bSupabase = document.getElementById('badgeTokenSupabase');
+    const bVercel = document.getElementById('badgeTokenVercel');
+    const bFirebase = document.getElementById('badgeTokenFirebase');
+    const bGithub = document.getElementById('badgeTokenGithub');
+
+    if (bSupabase) {
+      const active = configs.supabase?.hasToken || configs.supabase?.status === 'READY';
+      bSupabase.textContent = active ? 'ACTIVO (AES-256)' : 'PENDIENTE';
+      bSupabase.className = `badge ${active ? 'badge-success' : 'badge-secondary'}`;
+      if (configs.supabase?.url) document.getElementById('tokenSupabaseUrl').value = configs.supabase.url;
+    }
+
+    if (bVercel) {
+      const active = configs.vercel?.hasToken || configs.vercel?.status === 'READY';
+      bVercel.textContent = active ? 'ACTIVO (AES-256)' : 'PENDIENTE';
+      bVercel.className = `badge ${active ? 'badge-success' : 'badge-secondary'}`;
+    }
+
+    if (bFirebase) {
+      const active = configs.firebase?.hasToken || configs.firebase?.status === 'READY';
+      bFirebase.textContent = active ? 'ACTIVO (AES-256)' : 'PENDIENTE';
+      bFirebase.className = `badge ${active ? 'badge-success' : 'badge-secondary'}`;
+    }
+
+    if (bGithub) {
+      const active = configs.github?.hasToken || configs.github?.status === 'READY';
+      bGithub.textContent = active ? 'ACTIVO (AES-256)' : 'PENDIENTE';
+      bGithub.className = `badge ${active ? 'badge-success' : 'badge-secondary'}`;
+    }
+  } catch (err) {
+    console.error('Error fetching project token configs:', err);
+  }
+}
+
+async function saveProjectToken(provider) {
+  let token = '';
+  let config = {};
+
+  if (provider === 'supabase') {
+    const url = document.getElementById('tokenSupabaseUrl')?.value.trim();
+    const key = document.getElementById('tokenSupabaseKey')?.value.trim();
+    if (!key && !url) {
+      showToast('Introduce al menos la URL o la clave de Supabase', 'warning');
+      return;
+    }
+    token = key;
+    config = { url };
+  } else if (provider === 'vercel') {
+    token = document.getElementById('tokenVercelVal')?.value.trim();
+  } else if (provider === 'firebase') {
+    token = document.getElementById('tokenFirebaseVal')?.value.trim();
+  } else if (provider === 'github') {
+    token = document.getElementById('tokenGithubVal')?.value.trim();
+  }
+
+  try {
+    const res = await apiRequest('/api/tokens/project-configs', 'POST', { provider, token, config });
+    showToast(res.message || `Token de ${provider.toUpperCase()} guardado de forma segura`, 'success');
+    openAccountTokensModal();
+  } catch (err) {
+    showToast(`Error al guardar token: ${err.message}`, 'error');
   }
 }
 

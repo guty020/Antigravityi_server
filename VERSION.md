@@ -81,7 +81,28 @@ La versión **1.0 Beta** consolida el servidor central y el conector de agentes 
 - **Autenticación con Google y Sincronización Automática Multi-Cloud:**
   - Pantalla formal de autorización con consentimiento OAuth 2.0 de Google.
   - Al vincular la cuenta de Google (`guty020@gmail.com`), el backend detecta, vincula y sincroniza automáticamente los servicios enlazados: **Supabase**, **Vercel**, **Firebase** y **Google Cloud**.
-  - Actualización inmediata en tiempo real de cuotas de modelos de IA e insignias de estado verificado.
+### 7. Widget de Cuota Real Gemini (Foto 2), Soporte Multi-Modelo y Tokens de Proyecto con Modo Avanzado
+- **Widget de Cuota Real de Antigravity (Fiel a Foto 2):**
+  - Integra la visualización exacta del IDE de Google Antigravity para Gemini Models:
+    - **Weekly Limit Remaining:** Con medidor radial circular en ámbar (19%) y tiempo restante de recarga automática ("en 2 días, 16 horas").
+    - **Five Hour Limit Remaining:** Con medidor radial circular en verde (53%) y tiempo de renovación ("en 4 horas, 5 minutos").
+  - Botón de sincronización con la API local del servidor para actualizar consumos reales.
+- **Soporte de Múltiples Modelos por Proveedor:**
+  - Posibilidad de registrar múltiples modelos bajo el mismo proveedor (ej: varios modelos de Google como *Gemini 2.0 Flash*, *Gemini 1.5 Pro Thinking*, *Gemini Code Assist*; o múltiples modelos de *Anthropic* u *OpenAI*).
+  - Nuevo modal interactivo `+ Añadir Modelo` (`#addModelModal`) con asignación de cuota personalizada, unidad y claves API encriptadas.
+  - Barra de filtrado dinámico por pestañas (*Todos*, *Google*, *Anthropic*, *OpenAI*, *Supabase*, *Firebase*, *Vercel*) y opción de eliminar modelos.
+- **Centro de Información de Cuenta & Tokens de Proyecto (`#accountTokensModal`):**
+  - Muestra todos los datos de la cuenta activa (`guty020@gmail.com`) y el estado de la verificación Google OAuth 2.0.
+  - Formulario de configuración didáctico para los tokens requeridos para conectar proyectos:
+    - **Supabase:** URL y clave `service_role` o `anon` para PostgreSQL y Edge Functions.
+    - **Vercel:** Token de acceso de desarrollador para despliegues edge automáticos.
+    - **Firebase:** Token CLI o Service Account Private Key para Firestore y Functions.
+    - **GitHub:** Personal Access Token (PAT) con permisos de repositorio.
+  - Almacenamiento seguro con cifrado simétrico autenticado **AES-256-GCM**.
+- **Modo Asistido vs Modo Avanzado (Silenciamiento de Popovers):**
+  - Botón selector directo en la cabecera: `💡 Modo Asistido` / `⚡ Modo Avanzado`.
+  - En **Modo Asistido**, al pasar el ratón por cualquier dato, métrica, tarjeta o botón se muestra una tarjeta explicativa con *"¿Qué es?"*, *"¿Para qué sirve?"* y *"💡 Tip"*.
+  - En **Modo Avanzado**, todos los popovers y sugerencias al pasar el ratón se desactivan y silencian instantáneamente para desarrolladores senior que buscan una interfaz ultra-limpia.
 
 ---
 

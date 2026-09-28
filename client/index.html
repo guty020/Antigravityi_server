@@ -37,6 +37,10 @@
         <span class="device-icon">💻</span>
         <span class="device-label">PC Mode</span>
       </div>
+      <button id="toggleAdvancedModeBtn" class="pill-btn" onclick="toggleAdvancedMode()" title="Haz clic para alternar entre Modo Asistido (con sugerencias y ayudas) y Modo Avanzado">
+        <span id="advModeIcon">💡</span>
+        <span id="advModeText">Modo Asistido</span>
+      </button>
       <div class="dormant-pill" title="Modo Ilimitado Gratuito Activo">
         <span class="sparkle">✨</span> Acceso Ilimitado Total (Gratuito)
       </div>
@@ -566,14 +570,74 @@
             <p class="view-subtitle">Supervisión en tiempo real de disponibilidad, consumo gastado y tokens en Gemini, Claude, GPT-4o, Supabase, Firebase y Vercel.</p>
           </div>
           <div class="header-actions">
-            <button class="btn btn-secondary" onclick="loadModelQuotas(true)">
+            <button class="btn btn-secondary" onclick="loadModelQuotas(true)" title="Refrescar disponibilidad y consumo gastado">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M23 4v6h-6M1 20v-6h6M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/></svg>
               Sincronizar Cuotas
             </button>
-            <button class="btn btn-primary" onclick="openConnectApiKeyModal()">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-              Conectar API Key
+            <button class="btn btn-secondary" onclick="openAccountTokensModal()" title="Ver datos de la cuenta y configurar tokens de conexión para proyectos">
+              <span style="font-size: 14px;">🔑</span>
+              Tokens de Proyectos
             </button>
+            <button class="btn btn-primary" onclick="openAddModelModal()" title="Añadir modelos adicionales del mismo proveedor o externos">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              + Añadir Modelo
+            </button>
+          </div>
+        </div>
+
+        <!-- Real Gemini Models Quota Widget (Foto 2: Weekly Limit & 5-Hour Limit) -->
+        <div class="gemini-official-quota-card" id="geminiOfficialQuotaWidget">
+          <div class="gemini-quota-header">
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <span style="font-size: 17px; font-weight: 700; color: #fff;">Gemini Models</span>
+              <span class="info-bubble-icon" title="Información de cuota oficial directa de Google Antigravity">ℹ️</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <span id="geminiAccountBadge" style="font-size: 12px; color: var(--text-dim); background: rgba(255,255,255,0.06); padding: 3px 8px; border-radius: 4px;">guty020@gmail.com</span>
+              <button class="btn btn-xs btn-secondary" onclick="syncAntigravityRealQuota()" title="Actualizar datos de cuota real">
+                🔄 Sincronizar Cuota Real
+              </button>
+            </div>
+          </div>
+
+          <div class="gemini-limits-container">
+            <!-- Weekly Limit Remaining -->
+            <div class="gemini-limit-row" data-help-icon="📅" data-help-title="Weekly Limit (Límite Semanal de Antigravity)" data-help-category="CUOTA REAL GOOGLE" data-help-what="Porcentaje restante del cupo semanal asignado a tu cuenta oficial de Google en Antigravity IDE." data-help-for="Supervisa el gasto total de tokens a lo largo de la semana. Se renueva completamente de forma automática." data-help-tip="Si baja del 15%, puedes usar modelos adicionales o claves API dedicadas.">
+              <div class="gemini-limit-info">
+                <div class="gemini-limit-title">Weekly Limit Remaining</div>
+                <div class="gemini-limit-desc" id="weeklyLimitDesc">
+                  Has consumido parte de tu límite semanal, se renovará completamente en <span id="weeklyRefreshText">2 días, 16 horas</span>.
+                </div>
+              </div>
+              <div class="gemini-limit-metric">
+                <span class="gemini-limit-percentage" id="weeklyLimitPct">19%</span>
+                <div class="circular-progress-wrap">
+                  <svg viewBox="0 0 36 36" class="circular-chart-svg">
+                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#27272a" stroke-width="3.6" />
+                    <path id="weeklyCircleProgress" stroke-dasharray="19, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#f59e0b" stroke-width="3.6" stroke-linecap="round" />
+                  </svg>
+                </div>
+              </div>
+            </div>
+
+            <!-- Five Hour Limit Remaining -->
+            <div class="gemini-limit-row" data-help-icon="⏱️" data-help-title="Five Hour Limit (Ventana Móvil de 5 Horas)" data-help-category="BURST RATE LIMIT" data-help-what="Límite dinámico de ráfagas para generaciones continuas de código en bloques de 5 horas." data-help-for="Permite programar intensamente protegiendo la latencia del IDE. Se recarga en 4 horas y 5 minutos." data-help-tip="Este contador se recupera mucho más rápido que el cupo semanal tras pausas de trabajo.">
+              <div class="gemini-limit-info">
+                <div class="gemini-limit-title">Five Hour Limit Remaining</div>
+                <div class="gemini-limit-desc" id="fiveHourLimitDesc">
+                  Has consumido parte de tu límite de 5 horas, se renovará en <span id="fiveHourRefreshText">4 horas, 5 minutos</span>.
+                </div>
+              </div>
+              <div class="gemini-limit-metric">
+                <span class="gemini-limit-percentage" id="fiveHourLimitPct">53%</span>
+                <div class="circular-progress-wrap">
+                  <svg viewBox="0 0 36 36" class="circular-chart-svg">
+                    <path class="circle-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#27272a" stroke-width="3.6" />
+                    <path id="fiveHourCircleProgress" stroke-dasharray="53, 100" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#22c55e" stroke-width="3.6" stroke-linecap="round" />
+                  </svg>
+                </div>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -605,6 +669,17 @@
             <div id="modelProvidersCount" class="metric-value">0</div>
             <div class="metric-footnote">Google, Supabase, Firebase, Vercel...</div>
           </div>
+        </div>
+
+        <!-- Filter bar for multiple models per provider -->
+        <div class="models-filter-bar">
+          <button class="filter-tab active" data-filter="all" onclick="setModelsFilter('all')">Todos los Modelos</button>
+          <button class="filter-tab" data-filter="google" onclick="setModelsFilter('google')">Google / Gemini</button>
+          <button class="filter-tab" data-filter="anthropic" onclick="setModelsFilter('anthropic')">Anthropic Claude</button>
+          <button class="filter-tab" data-filter="openai" onclick="setModelsFilter('openai')">OpenAI</button>
+          <button class="filter-tab" data-filter="supabase" onclick="setModelsFilter('supabase')">Supabase Edge</button>
+          <button class="filter-tab" data-filter="firebase" onclick="setModelsFilter('firebase')">Firebase Cloud</button>
+          <button class="filter-tab" data-filter="vercel" onclick="setModelsFilter('vercel')">Vercel AI</button>
         </div>
 
         <!-- Quota Progress Grid -->
@@ -1320,6 +1395,200 @@
         <div style="display: flex; gap: 10px; margin-top: 16px;">
           <button class="btn btn-secondary w-50" onclick="closeModal('antigravityDetailsModal')">Cerrar</button>
           <button class="btn btn-primary w-50" onclick="closeModal('antigravityDetailsModal'); switchView('tests');">Ir al Test Center 🧪</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 12. Modal: Añadir Nuevo Modelo de IA (Permite múltiples modelos por proveedor) -->
+  <div id="addModelModal" class="modal hidden">
+    <div class="modal-card" style="max-width: 550px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🤖</span>
+          <div>
+            <h2 class="modal-title">Añadir Modelo de IA</h2>
+            <div style="font-size: 11px; color: var(--text-dim);">Registra múltiples modelos del mismo proveedor o nuevos endpoints</div>
+          </div>
+        </div>
+        <button class="btn-close" onclick="closeModal('addModelModal')">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>Proveedor:</label>
+          <select id="newModelProvider" class="form-input">
+            <option value="google">Google (Gemini / Antigravity)</option>
+            <option value="anthropic">Anthropic (Claude)</option>
+            <option value="openai">OpenAI (GPT-4o, Codex, o1)</option>
+            <option value="supabase">Supabase (PostgreSQL AI & Edge)</option>
+            <option value="firebase">Firebase (Cloud Functions & Vector)</option>
+            <option value="vercel">Vercel (Edge AI SDK)</option>
+            <option value="custom">Otro Proveedor Personalizado</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Nombre Descriptivo del Modelo:</label>
+          <input type="text" id="newModelName" class="form-input" placeholder="ej: Gemini 1.5 Pro (Thinking Mode)">
+        </div>
+        <div class="form-group">
+          <label>ID Técnico del Modelo:</label>
+          <input type="text" id="newModelId" class="form-input" placeholder="ej: gemini-1-5-pro-preview">
+        </div>
+        <div style="display: flex; gap: 12px;">
+          <div class="form-group" style="flex: 1;">
+            <label>Límite de Cuota Asignada:</label>
+            <input type="number" id="newModelQuotaLimit" class="form-input" value="500000">
+          </div>
+          <div class="form-group" style="flex: 1;">
+            <label>Unidad de Medida:</label>
+            <select id="newModelUnit" class="form-input">
+              <option value="tokens/día">tokens/día</option>
+              <option value="invocaciones/mes">invocaciones/mes</option>
+              <option value="GB transferencia">GB transferencia</option>
+              <option value="peticiones/minuto">peticiones/minuto</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Clave API o Token de Acceso (Opcional):</label>
+          <input type="password" id="newModelApiKey" class="form-input" placeholder="Se cifrará con AES-256-GCM">
+          <small style="font-size: 11px; color: var(--text-dim); display: block; margin-top: 4px;">Si está vacía, se utilizará el token vinculado a la cuenta de Google o conector por defecto.</small>
+        </div>
+        <div style="display: flex; gap: 10px; margin-top: 20px;">
+          <button class="btn btn-secondary w-50" onclick="closeModal('addModelModal')">Cancelar</button>
+          <button class="btn btn-primary w-50" onclick="submitAddNewModel()">Añadir Modelo</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 13. Modal: Información de Cuenta & Tokens de Proyecto -->
+  <div id="accountTokensModal" class="modal hidden">
+    <div class="modal-card" style="max-width: 720px;">
+      <div class="modal-header">
+        <div style="display: flex; align-items: center; gap: 10px;">
+          <span style="font-size: 22px;">🔑</span>
+          <div>
+            <h2 class="modal-title">Información de Cuenta & Tokens de Proyectos</h2>
+            <div style="font-size: 11px; color: var(--text-dim);">Configura credenciales oficiales para enlazar tus proyectos de desarrollo</div>
+          </div>
+        </div>
+        <button class="btn-close" onclick="closeModal('accountTokensModal')">&times;</button>
+      </div>
+      <div class="modal-body" style="max-height: 80vh; overflow-y: auto;">
+        <!-- Account Details Card -->
+        <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: 8px; padding: 14px; margin-bottom: 20px;">
+          <div style="font-size: 12px; font-weight: 700; color: #fff; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">👤 Datos de la Cuenta Activa</div>
+          <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px; font-size: 12px;">
+            <div><span style="color: var(--text-dim);">Cuenta Google:</span> <strong id="accInfoEmail" style="color: #60a5fa;">guty020@gmail.com</strong></div>
+            <div><span style="color: var(--text-dim);">Nombre:</span> <strong id="accInfoName" style="color: #fff;">Guty</strong></div>
+            <div><span style="color: var(--text-dim);">Estado:</span> <span class="badge badge-success">GOOGLE OAUTH VERIFICADO</span></div>
+            <div><span style="color: var(--text-dim);">Servicios vinculados:</span> <span style="color: #4ade80;">Google AI, Supabase, Firebase, Vercel</span></div>
+          </div>
+        </div>
+
+        <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 16px; line-height: 1.5;">
+          Para que los agentes de Antigravity puedan desplegar código, ejecutar migraciones y compilar en tus proyectos externos, introduce a continuación los tokens requeridos. Cada token se almacena con cifrado autenticado <strong>AES-256-GCM</strong>.
+        </div>
+
+        <!-- Token Items -->
+        <div class="token-config-list" style="display: flex; flex-direction: column; gap: 16px;">
+          <!-- Supabase -->
+          <div class="token-config-box">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">⚡</span>
+                <div>
+                  <strong style="color: #fff;">Supabase Database & Edge Functions</strong>
+                  <span class="badge badge-info" style="font-size: 10px; margin-left: 6px;">POSTGRESQL</span>
+                </div>
+              </div>
+              <span id="badgeTokenSupabase" class="badge badge-secondary">SIN TOKEN</span>
+            </div>
+            <div class="token-explanation-block">
+              <p><strong>¿Qué es?</strong> La URL y la clave de acceso (`anon` pública o `service_role` administrativa) de tu proyecto en Supabase.</p>
+              <p><strong>¿Para qué sirve?</strong> Permite a Antigravity ejecutar migraciones SQL, leer esquemas y desplegar Edge Functions.</p>
+              <p><strong>¿Dónde obtenerlo?</strong> Ve a <em>Supabase Dashboard > Project Settings > API > Project API Keys</em>.</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <input type="text" id="tokenSupabaseUrl" class="form-input" style="flex: 1;" placeholder="https://xyzcompany.supabase.co">
+              <input type="password" id="tokenSupabaseKey" class="form-input" style="flex: 1;" placeholder="eyJhbGciOi... (Service Role Key)">
+              <button class="btn btn-primary" onclick="saveProjectToken('supabase')">Guardar</button>
+            </div>
+          </div>
+
+          <!-- Vercel -->
+          <div class="token-config-box">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 16px; font-weight: 900;">▲</span>
+                <div>
+                  <strong style="color: #fff;">Vercel Edge Platform</strong>
+                  <span class="badge badge-info" style="font-size: 10px; margin-left: 6px;">DEPLOYMENTS</span>
+                </div>
+              </div>
+              <span id="badgeTokenVercel" class="badge badge-secondary">SIN TOKEN</span>
+            </div>
+            <div class="token-explanation-block">
+              <p><strong>¿Qué es?</strong> Token personal de acceso (PAT) generado en la plataforma de Vercel.</p>
+              <p><strong>¿Para qué sirve?</strong> Habilita despliegues automáticos desde el orquestador, gestión de dominios y variables de entorno.</p>
+              <p><strong>¿Dónde obtenerlo?</strong> Ve a <em>Vercel Dashboard > Account Settings > Tokens > Create Token</em>.</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <input type="password" id="tokenVercelVal" class="form-input" style="flex: 1;" placeholder="Token de acceso Vercel (ej: abc123xyz...)">
+              <button class="btn btn-primary" onclick="saveProjectToken('vercel')">Guardar</button>
+            </div>
+          </div>
+
+          <!-- Firebase -->
+          <div class="token-config-box">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">🔥</span>
+                <div>
+                  <strong style="color: #fff;">Firebase Platform & Firestore</strong>
+                  <span class="badge badge-info" style="font-size: 10px; margin-left: 6px;">CLOUD</span>
+                </div>
+              </div>
+              <span id="badgeTokenFirebase" class="badge badge-secondary">SIN TOKEN</span>
+            </div>
+            <div class="token-explanation-block">
+              <p><strong>¿Qué es?</strong> Token de autenticación de Firebase CLI o JSON de clave de cuenta de servicio.</p>
+              <p><strong>¿Para qué sirve?</strong> Permite probar reglas de seguridad, bases de datos Firestore y desplegar Cloud Functions.</p>
+              <p><strong>¿Dónde obtenerlo?</strong> Ejecuta `firebase login:ci` o en <em>Firebase Console > Configuración del proyecto > Cuentas de servicio</em>.</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <input type="password" id="tokenFirebaseVal" class="form-input" style="flex: 1;" placeholder="Firebase CI Token o Private Key JSON">
+              <button class="btn btn-primary" onclick="saveProjectToken('firebase')">Guardar</button>
+            </div>
+          </div>
+
+          <!-- GitHub -->
+          <div class="token-config-box">
+            <div style="display: flex; justify-content: space-between; align-items: flex-start;">
+              <div style="display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">🐙</span>
+                <div>
+                  <strong style="color: #fff;">GitHub Repositories & Sync</strong>
+                  <span class="badge badge-info" style="font-size: 10px; margin-left: 6px;">GIT</span>
+                </div>
+              </div>
+              <span id="badgeTokenGithub" class="badge badge-secondary">SIN TOKEN</span>
+            </div>
+            <div class="token-explanation-block">
+              <p><strong>¿Qué es?</strong> Personal Access Token (PAT) con permisos de lectura y escritura (`repo`, `workflow`).</p>
+              <p><strong>¿Para qué sirve?</strong> Permite al conector hacer commits, sincronizar con la rama remota y crear ramas de respaldo.</p>
+              <p><strong>¿Dónde obtenerlo?</strong> Ve a <em>GitHub > Settings > Developer settings > Personal access tokens > Tokens (classic)</em>.</p>
+            </div>
+            <div style="display: flex; gap: 8px; margin-top: 10px;">
+              <input type="password" id="tokenGithubVal" class="form-input" style="flex: 1;" placeholder="ghp_xxxxxxxxxxxxxxxxxxxx">
+              <button class="btn btn-primary" onclick="saveProjectToken('github')">Guardar</button>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; justify-content: flex-end; margin-top: 20px;">
+          <button class="btn btn-secondary" onclick="closeModal('accountTokensModal')">Cerrar</button>
         </div>
       </div>
     </div>

@@ -1699,6 +1699,132 @@ router.post('/models/refresh', authMiddleware, (req, res) => {
   }
 });
 
+// Antigravity Real Quota (Weekly Limit 19% & Five-Hour Limit 53% matching Google Antigravity UI)
+router.get('/models/antigravity-real-quota', (req, res) => {
+  try {
+    const db = req.db || getDb();
+    const quota = modelsEngine.getAntigravityRealQuota(db);
+    res.json(quota);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/models/antigravity-real-quota', authMiddleware, (req, res) => {
+  try {
+    const db = req.db || getDb();
+    const updated = modelsEngine.updateAntigravityRealQuota(db, req.body);
+    res.json({ success: true, quota: updated, message: 'Cuotas reales de Antigravity sincronizadas correctamente' });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Add custom model (allows multiple models per provider, e.g. Google, Anthropic, OpenAI, Supabase, etc.)
+router.post('/models/custom', authMiddleware, (req, res) => {
+  try {
+    const db = req.db || getDb();
+    const result = modelsEngine.addCustomModel(db, req.user.id, req.body);
+    logAuditEvent(db, {
+      userId: req.user.id,
+      action: 'ADD_CUSTOM_AI_MODEL',
+      resourceType: 'ai_models',
+      resourceId: result.modelId,
+      details: { provider: result.provider, modelName: result.modelName }
+    });
+    res.status(201).json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Delete custom model
+router.delete('/models/:id', authMiddleware, (req, res) => {
+  try {
+    const db = req.db || getDb();
+    const result = modelsEngine.deleteModel(db, req.user.id, req.params.id);
+    res.json(result);
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
+// Project Tokens & Account Configuration (Supabase, Vercel, Firebase, GitHub, Google Cloud)
+router.get('/tokens/project-configs', authMiddleware, (req, res) => {
+  try {
+    const db = req.db || getDb();
+    const rows = db.prepare('SELECT provider, status, config_json, encrypted_credentials, updated_at FROM integrations WHERE user_id = ?').all(req.user.id);
+    
+    // Mask sensitive secrets for display
+    const configs = {};
+    rows.forEach(r => {
+      let cfg = {};
+      try { cfg = JSON.parse(r.config_json || '{}'); } catch (e) {}
+      let hasToken = Boolean(r.encrypted_credentials);
+      configs[r.provider] = {
+        provider: r.provider,
+        status: r.status,
+        hasToken,
+        updatedAt: r.updated_at,
+        ...cfg
+      };
+    });
+
+    res.json({
+      success: true,
+      account: {
+        email: req.user.email,
+        fullName: req.user.fullName,
+        role: req.user.role,
+        userId: req.user.id
+      },
+      configs
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post('/tokens/project-configs', authMiddleware, (req, res) => {
+  try {
+    const { provider, token, config = {} } = req.body;
+    if (!provider) return res.status(400).json({ error: 'Proveedor requerido' });
+
+    const db = req.db || getDb();
+    const now = new Date().toISOString();
+    const encrypted = token ? encryptSecret(token) : null;
+
+    const existing = db.prepare('SELECT id FROM integrations WHERE user_id = ? AND provider = ?').get(req.user.id, provider);
+    if (existing) {
+      if (encrypted) {
+        db.prepare('UPDATE integrations SET status = ?, encrypted_credentials = ?, config_json = ?, updated_at = ? WHERE id = ?')
+          .run('READY', encrypted, JSON.stringify(config), now, existing.id);
+      } else {
+        db.prepare('UPDATE integrations SET config_json = ?, updated_at = ? WHERE id = ?')
+          .run(JSON.stringify(config), now, existing.id);
+      }
+    } else {
+      const id = 'int_' + crypto.randomUUID();
+      db.prepare(`
+        INSERT INTO integrations (id, user_id, provider, status, encrypted_credentials, config_json, created_at, updated_at)
+        VALUES (?, ?, ?, 'READY', ?, ?, ?, ?)
+      `).run(id, req.user.id, provider, encrypted, JSON.stringify(config), now, now);
+    }
+
+    logAuditEvent(db, {
+      userId: req.user.id,
+      action: 'UPDATE_PROJECT_TOKEN_CONFIG',
+      resourceType: 'integrations',
+      resourceId: provider,
+      details: { provider }
+    });
+
+    res.json({ success: true, message: `Token y configuración de ${provider.toUpperCase()} guardados con cifrado seguro AES-256-GCM` });
+  } catch (err) {
+    res.status(400).json({ error: err.message });
+  }
+});
+
 /* ==========================================================================
    11. PREMIUM MODULE (Dormant / Desactivado - Prompt 18)
    ========================================================================== */

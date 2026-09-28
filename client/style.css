@@ -2067,3 +2067,169 @@ body.hide-btn-hints .btn-hint-text {
   padding-bottom: 24px;
 }
 
+/* ==========================================================================
+   GEMINI MODELS REAL QUOTA CARD (Exact match to Foto 2)
+   ========================================================================== */
+
+.gemini-official-quota-card {
+  background: #14171f;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 12px;
+  padding: 16px 20px;
+  margin-bottom: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+.gemini-quota-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  margin-bottom: 14px;
+}
+
+.gemini-limits-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.gemini-limit-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: #1a1e29;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 8px;
+  padding: 14px 18px;
+  transition: all 0.2s ease;
+}
+
+.gemini-limit-row:hover {
+  background: #1e2330;
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.gemini-limit-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  margin-bottom: 3px;
+}
+
+.gemini-limit-desc {
+  font-size: 12px;
+  color: #9ca3af;
+  line-height: 1.4;
+}
+
+.gemini-limit-metric {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.gemini-limit-percentage {
+  font-size: 16px;
+  font-weight: 700;
+  color: #fff;
+  min-width: 38px;
+  text-align: right;
+}
+
+.circular-progress-wrap {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.circular-chart-svg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+/* Models Filter Bar */
+.models-filter-bar {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.filter-tab {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid var(--border-color);
+  color: var(--text-muted);
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.2s ease;
+}
+
+.filter-tab:hover {
+  background: rgba(99, 102, 241, 0.15);
+  color: #fff;
+  border-color: rgba(99, 102, 241, 0.4);
+}
+
+.filter-tab.active {
+  background: var(--accent-blue);
+  color: #fff;
+  border-color: var(--accent-blue);
+  font-weight: 600;
+  box-shadow: 0 0 12px rgba(99, 102, 241, 0.4);
+}
+
+/* Token Config Items */
+.token-config-box {
+  background: #111622;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.token-explanation-block {
+  background: rgba(0, 0, 0, 0.25);
+  border-left: 3px solid #6366f1;
+  padding: 8px 12px;
+  border-radius: 0 6px 6px 0;
+  margin-top: 10px;
+  font-size: 11.5px;
+  color: #cbd5e1;
+  line-height: 1.45;
+}
+
+.token-explanation-block p {
+  margin: 3px 0;
+}
+
+/* Pill Button in Header for Mode */
+.pill-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-color);
+  color: #e2e8f0;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.pill-btn:hover {
+  background: rgba(99, 102, 241, 0.2);
+  border-color: #6366f1;
+  color: #fff;
+}
+
